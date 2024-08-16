@@ -36,14 +36,15 @@ test_p::test_p(){}
 test_p::~test_p(){}
 /************************************************************************************/
 void test_p::test_systems_support(){
-	std::string data_test_path = "/home/igorchem/primordia-code/PRIMoRDiA_data_test/";
+	std::string data_test_path = "/home/igorchem/Dev/PRIMoRDiA_data_test/";
 	data_test_path += "primordia.input";
 	AutoPrimordia run_test(data_test_path.c_str());
 	run_test.init();
 }
 /************************************************************************************/
 void test_p::init_general_test(){
-	AutoPrimordia run_test("/home/igorchem/primordia-code/PRIMoRDiA_data_test/autoprimordia/input");
+	//AutoPrimordia run_test("/home/igorchem/Dev/PRIMoRDiA_data_test/autoprimordia/input");
+	AutoPrimordia run_test("/home/igorchem/CCDIR/Descritores_RTA/primordia_debug.input");
 	run_test.init();
 }
 /************************************************************************************/

@@ -218,7 +218,7 @@ void mopac_files::parse_aux(){
 			_in[6] = i+1;
 		}
 		else if ( Buffer.lines[i].IF_word(_ao_chg,0,11) ) {
-			_out[6]=i+1;
+			_out[6]=i+1;			
 		}
 		else if ( Buffer.lines[i].IF_word(_gradients,0,28) ) {
 			_out[6]=i+1;

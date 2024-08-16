@@ -35,6 +35,7 @@ string delim_2 = "------------------------------------------------------\n";
 Ilog::Ilog()			:
 	screen_output(false){
 }
+
 /************************************************************/
 void Ilog::initialize(bool sout){
 	screen_output	= sout;
@@ -42,8 +43,28 @@ void Ilog::initialize(bool sout){
 	time_t now	= time(0);
 	char* dt	= ctime(&now);
 
+	//std::string file_name = "primordia" + dt + ".log";
+	//cout << file_name << endl;
 	log_file.open("primordia.log",std::ios::out | std::ios_base::app);
 	
+	log_file << delim_1; 
+	log_file << delim_1;
+	log_file <<"██████  ██████  ██ ███    ███  ██████  ██████  ██████  ██  █████ "     << endl;
+	log_file <<"██   ██ ██   ██ ██ ████  ████ ██    ██ ██   ██ ██   ██ ██ ██   ██"     << endl;
+	log_file <<"██████  ██████  ██ ██ ████ ██ ██    ██ ██████  ██   ██ ██ ███████"     << endl;
+	log_file <<"██      ██   ██ ██ ██  ██  ██ ██    ██ ██   ██ ██   ██ ██ ██   ██"     << endl;
+	log_file <<"██      ██   ██ ██ ██      ██  ██████  ██   ██ ██████  ██ ██   ██"     << endl;
+	log_file << endl;                                                                      
+	log_file << endl;                                                                    
+                                                                    
+	log_file <<"███████  ██████  ███████ ████████ ██     ██  █████  ██████  ███████"   << endl;
+	log_file <<"██      ██    ██ ██         ██    ██     ██ ██   ██ ██   ██ ██     "   << endl;
+	log_file <<"███████ ██    ██ █████      ██    ██  █  ██ ███████ ██████  █████  "   << endl;
+	log_file <<"     ██ ██    ██ ██         ██    ██ ███ ██ ██   ██ ██   ██ ██     "   << endl;
+	log_file <<"███████  ██████  ██         ██     ███ ███  ██   ██ ██   ██ ███████"   << endl;
+	log_file << endl;                                                                      
+	log_file << endl;
+	log_file << delim_1;
 }
 /************************************************************/
 void Ilog::input_message(std::string message){

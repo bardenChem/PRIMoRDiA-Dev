@@ -81,7 +81,7 @@ interface::interface(int argc, char** argv) :
 	//----------------------------------
 	// Writting basic information in the log file
 	m_log->initialize(M_verbose);
-	m_log->input_message("Starting PRIMoRDiA software!\n ");
+	m_log->input_message("Starting PRIMoRDiA software!\n");
 	m_log->input_message("Calculations Starting at: ");
 	m_log->input_message(dt);
 	m_log->input_message("\n");
@@ -215,9 +215,9 @@ void interface::write_help(){
 /***********************************************************************/
 void interface::test_run(){
 	test_p teste;
-	//teste.init_general_test();
+	teste.init_general_test();
 	//teste.test_reaction_analysis();
-	teste.test_traj_analysis();
+	//teste.test_traj_analysis();
 }
 /***********************************************************************/
 void interface::write_input(){
