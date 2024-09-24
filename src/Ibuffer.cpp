@@ -23,6 +23,10 @@
 #include "../include/log_class.h"
 #include "../include/Iline.h"
 #include "../include/Ibuffer.h"
+
+#include <boost/iostreams/filtering_streambuf.hpp>
+#include <boost/iostreams/copy.hpp>
+#include <boost/iostreams/filter/gzip.hpp>
 //------------------------------------------
 using std::move;
 using std::string;
@@ -31,6 +35,10 @@ using std::cout;
 using std::endl;
 using std::ifstream;
 
+
+using boost::iostreams::input;
+using boost::iostreams::gzip_decompressor;
+
 /*==============================================*/
 Ibuffer::Ibuffer()	:
 	nLines(0)		,
@@ -38,13 +46,13 @@ Ibuffer::Ibuffer()	:
 }
 /******************************************************************/
 Ibuffer::Ibuffer(const char* file_name	,
-						bool parse	)	:
+						bool parse	    ):
 	nLines(0)							,
 	name(file_name)						{
 	
 	char tmp_line[500];
 	if ( parse ){
-		if ( IF_file(file_name) ){
+		if ( IF_file(file_name) ){			
 			ifstream buf(file_name);
 			name  = file_name;
 			while( !buf.eof() ){
@@ -53,7 +61,7 @@ Ibuffer::Ibuffer(const char* file_name	,
 				nLines++;
 			}
 			buf.close();
-			parsed = true;
+			parsed = true;						
 		}else{
 			string message = "Not possible to open the file: ";
 			message += name;
@@ -83,9 +91,43 @@ Ibuffer::Ibuffer(const char* file_name	,
 	}
 }
 /******************************************************************/
+/*Ibuffer::Ibuffer(const char* file_name	,
+						bool parse      ,	    
+						bool gz        ):
+	nLines(0)							,
+	name(file_name)						{
+	
+	string tmp_line;
+	if ( IF_file(file_name) ){
+			ifstream file(file_name, std::ios_base::in | std::ios_base::binary);
+			boost::iostreams::filtering_streambuf<input> in;
+			in.push(gzip_decompressor());
+			in.push(file);
+				
+			std::istreambuf_iterator<char> it(in);
+			std::istreambuf_iterator<char> eos;
+				
+			string line;
+			while( getline(it,eos,tmp_line) ){
+				if (parse) { lines.emplace_back(line); }
+				nLines++;
+			}				
+			parsed = true;
+		}else{
+			string message = "Not possible to open the file: ";
+			message += name;
+			message += "\n";
+			cout << message << endl;
+			m_log->input_message(message);
+			parsed = false;
+		}	
+		parsed = false;
+	}
+}
+/******************************************************************/
 Ibuffer::Ibuffer(const char* file_name	,
 				int in					,
-				int fin)				:
+				int fin                 ):
 				nLines(0)				,
 				name(file_name)			{
 	
@@ -116,9 +158,9 @@ Ibuffer::Ibuffer(const char* file_name	,
 	
 }
 /******************************************************************/
-Ibuffer::Ibuffer(const char* file_name	,
-				 string wrdin			,
-				 string wrdfin			):
+Ibuffer::Ibuffer(const char* file_name,
+				 string wrdin		  ,
+				 string wrdfin		 ):
 	nLines(0)							,
 	name(file_name)						{
 		
@@ -157,7 +199,7 @@ Ibuffer::Ibuffer(const char* file_name	,
 /******************************************************************/
 Ibuffer::Ibuffer(const char* file_name		, 
 				vector<string>& wrds_in		,
-				vector<string>& wrds_fin )	:
+				vector<string>& wrds_fin    ):
 	nLines(0)								,
 	name(file_name)							{
 	
