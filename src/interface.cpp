@@ -31,6 +31,7 @@
 #include "../include/QMparser.h"
 #include "../include/Icube.h"
 #include "../include/Ibuffer.h"
+#include "../include/Ibuffer_GZ.h"
 #include "../include/Iline.h"
 #include "../include/gridgen.h"
 #include "../include/primordia.h"
@@ -214,10 +215,16 @@ void interface::write_help(){
 }
 /***********************************************************************/
 void interface::test_run(){
-	test_p teste;
-	teste.init_general_test();
+	//test_p teste;
+	//teste.init_general_test();
 	//teste.test_reaction_analysis();
 	//teste.test_traj_analysis();
+	
+	std::string file_name = "/home/igorchem/Downloads/fernanda/1df8/1df8_A_D128A_06.com.aux.tar.gz";
+	std::string file_name_aux = "/home/igorchem/Downloads/fernanda/1df8/1df8_A_D128A_06.com.aux";
+	//std::string file_name = "/home/igorchem/Downloads/fernanda/1df8/1df8_A_D128A_06.lig.aux.tar.gz";
+	//Ibuffer_GZ buf(file_name.c_str(),true); //62444847
+	Ibuffer buf(file_name_aux.c_str(),true); //62444847
 }
 /***********************************************************************/
 void interface::write_input(){
