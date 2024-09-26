@@ -42,7 +42,7 @@ Iline::Iline(string Line):
 	
 	while (stream >> word){
 		word.shrink_to_fit();
-		words.emplace_back( move( word ) );
+		words.emplace_back( word );
 		line_len++;
 	}
 	words.shrink_to_fit();	
@@ -51,16 +51,18 @@ Iline::Iline(string Line):
 Iline::Iline(char* Line)	:
 	line_len(0)				{
 		
-	words.reserve(30);
+	words.reserve(10);
 	std::stringstream stream(Line);
 	string word;
-	word.reserve(20);
+	word.reserve(6);
 	
 	while (stream >> word){
 		words.emplace_back( word );
 		line_len++;
 	}
+	words.shrink_to_fit();
 }
+
 /*****************************************************************************/
 Iline::Iline(const Iline& rhs_line)	:
 	words(rhs_line.words)			,

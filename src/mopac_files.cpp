@@ -34,10 +34,15 @@
 #include "../include/Iline.h"
 #include "../include/Ibuffer.h"
 #include "../include/mopac_files.h"
+#include "../include/Ibuffer_GZ.h"
 //-------------------------------------------------------
 #include <Eigen/Eigenvalues>
 #include <Eigen/LU>
 #include <Eigen/QR>
+
+#include <boost/iostreams/filtering_streambuf.hpp>
+#include <boost/iostreams/copy.hpp>
+#include <boost/iostreams/filter/gzip.hpp>
 //-------------------------------------------------------
 // Aliases for standard c++ scope functions
 using std::move;
@@ -48,6 +53,9 @@ using std::cout;
 using std::endl;
 using std::stoi;
 using std::stod;
+
+using boost::iostreams::input;
+using boost::iostreams::gzip_decompressor;
 
 /**************************************/
 // Keywords	
@@ -97,15 +105,28 @@ mopac_files::mopac_files(const char* file_name):
 	
 	name_f = file_name;
 	molecule.name = get_file_name(file_name);
-	molecule.name = remove_extension( molecule.name.c_str() );
-	
+	molecule.name = remove_extension( molecule.name.c_str() );	
 	
 	if ( IF_file( file_name ) ){
 		is_open = true;
 		//Ibuffer Buffer(file_name,true);
-		if ( check_file_ext(".aux",file_name ) ) {
+		if ( check_file_ext(".aux",file_name )  or check_file_ext(".gz",file_name ) ) {
 			type = "AUX";
-			Ibuffer Buffer(file_name,_keywords,_overlap);
+			Ibuffer Buffer;
+			if ( check_file_ext("gz",file_name ) ){
+				Ibuffer_GZ Buffer_GZ(file_name,_keywords,_overlap);
+				Buffer.nLines = Buffer_GZ.nLines;
+				Buffer.lines  = move(Buffer_GZ.lines);
+				Buffer.parsed = true;
+				Buffer.name   = Buffer_GZ.name;
+			}else{ 
+				Ibuffer buf(file_name,_keywords,_overlap);
+				Buffer.nLines = buf.nLines;
+				Buffer.lines  = move(buf.lines);
+				Buffer.parsed = true;
+				Buffer.name   = buf.name;
+			}
+			
 			for( unsigned i=0; i<Buffer.lines.size(); i++ ){
 				if ( Buffer.lines[i].IF_word(_keywords,0,8 ) ){
 					for( unsigned j=0; j<Buffer.lines[i].words.size(); j++ ){
@@ -191,7 +212,20 @@ void mopac_files::parse_aux(){
 	vector<unsigned> _in(7);
 	vector<unsigned> _out(7);
 	
-	Ibuffer Buffer(name_f,_keywords,_overlap);	
+	Ibuffer Buffer;
+	if ( check_file_ext(".gz", name_f ) ){
+		Ibuffer_GZ Buffer_GZ(name_f,_keywords,_overlap);
+		Buffer.nLines = Buffer_GZ.nLines;
+		Buffer.lines  = move(Buffer_GZ.lines);
+		Buffer.parsed = true;
+		Buffer.name   = Buffer_GZ.name;
+	}else{ 
+		Ibuffer buf(name_f,_keywords,_overlap);
+		Buffer.nLines = buf.nLines;
+		Buffer.lines  = move(buf.lines);
+		Buffer.parsed = true;
+		Buffer.name   = buf.name;
+	}	
 	_out[6] = Buffer.nLines-1;
 	for( unsigned i=0; i<Buffer.nLines-1;i++){
 		if ( Buffer.lines[i].IF_word(_atom_el,0,8) ){
@@ -735,28 +769,56 @@ void mopac_files::get_overlap_m(){
 	int nLines 			= 0;
 	double temp			= 0.0;
 	
-	char tmp_line[150];
+	string tmp_line;
 	
 	if ( IF_file(name_f) ){
-		std::ifstream buf(name_f);
-		while( !buf.eof() ){
-			buf.getline(tmp_line,150);
-			Iline Line(tmp_line);
-			if ( in_indx == -1) {
-				if ( Line.IF_word( _overlap,0,_overlap.size() ) ) {
-					in_indx		= nLines;
-				}
-			}else if ( in_indx >0 && molecule.m_overlap.size() < fin_indx) {
-				std::stringstream ssline(tmp_line);
-				while ( ssline >> temp ){
-					molecule.m_overlap.push_back(temp);
+		
+		if ( check_file_ext(".gz", name_f ) ){			
+			std::ifstream file(name_f, std::ios_base::in | std::ios_base::binary);
+			boost::iostreams::filtering_streambuf<input> inp;
+			inp.push(gzip_decompressor());
+			inp.push(file);
+				
+			std::istreambuf_iterator<char> it(&inp);
+			std::istreambuf_iterator<char> eos;
+			std::istream input_stream(&inp);
+			
+			while( getline(input_stream, tmp_line) ){
+				Iline Line(tmp_line);
+				if ( in_indx == -1) {
+					if ( Line.IF_word( _overlap,0,_overlap.size() ) ) in_indx = nLines;
+					else if ( in_indx >0 && molecule.m_overlap.size() < fin_indx) {
+						std::stringstream ssline(tmp_line);
+						while ( ssline >> temp ){
+							molecule.m_overlap.push_back(temp);
+						}
+					}
+				nLines++;
 				}
 			}
-			nLines++;
+			file.close();
+			m_log->input_message("Size of Overlap matrix: \n\t");
+			m_log->input_message( int( molecule.m_overlap.size() ) );
+		}else{		
+			std::ifstream buf(name_f);
+			while( std::getline(buf,tmp_line) ){
+				Iline Line(tmp_line);
+				if ( in_indx == -1 ) {
+					if ( Line.IF_word( _overlap,0,_overlap.size() ) ) {
+						in_indx		= nLines;
+					}
+				}else if ( in_indx >0 && molecule.m_overlap.size() < fin_indx) {
+					std::stringstream ssline(tmp_line);
+					while ( ssline >> temp ){
+						molecule.m_overlap.push_back(temp);
+					}
+				}
+				nLines++;
+			}
+			buf.close();
+			m_log->input_message("Size of Overlap matrix: \n\t");
+			m_log->input_message( int( molecule.m_overlap.size() ) );
 		}
-		buf.close();
-		m_log->input_message("Size of Overlap matrix: \n\t");
-		m_log->input_message( int( molecule.m_overlap.size() ) );
 	}else{
 		m_log->input_message("Nothing to read!\n");
 		nLines = 0;
@@ -781,39 +843,77 @@ void mopac_files::get_mo(bool beta){
 	int fin_indx		= nAO*nAO/10;
 	std::vector<double> mo_c;
 
-	char tmp_line[150];
+	string tmp_line;
 	string tmpt;
 	
 	if ( IF_file(name_f) ){
-		std::ifstream buf(name_f);
-		while( !buf.eof() ){
-			buf.getline(tmp_line,150);
-			Iline Line(tmp_line);
-			if ( in_indx == -1 ){
-				if ( Line.IF_word( keyword,0,keyword.size() ) ){
-					in_indx = nLines;
+		
+		if ( check_file_ext(".gz", name_f ) ){			
+			std::ifstream file(name_f, std::ios_base::in | std::ios_base::binary);
+			boost::iostreams::filtering_streambuf<input> inp;
+			inp.push(gzip_decompressor());
+			inp.push(file);
+				
+			std::istreambuf_iterator<char> it(&inp);
+			std::istreambuf_iterator<char> eos;
+			std::istream input_stream(&inp);
+			
+			while( getline(input_stream, tmp_line) ){
+				Iline Line(tmp_line);
+				if ( in_indx == -1) {
+					if ( Line.IF_word( keyword,0,keyword.size() ) ) in_indx = nLines;
+				}else if ( in_indx >0 && nMO < nMO_out ) {
+					std::stringstream ssline(tmp_line);
+					while ( ssline >> temp ){
+						mo_c.push_back(temp);
+						nMO++;
+					}
+				}else{
+					break;
 				}
-			}else if ( in_indx > 0 && nMO < nMO_out){
-				std::stringstream ssline(tmp_line);
-				while ( ssline >> temp ){
-					mo_c.push_back(temp);
-					nMO++;
-				}
-			}else{
-				break;
+				nLines++;
 			}
-			nLines++;
-		}
-		buf.close();
-		if ( !beta ) {
-			copy( mo_c.begin(),mo_c.end(),back_inserter(molecule.coeff_MO) );
-			m_log->input_message("Number of MO vectors: \n\t");
-			m_log->input_message( int( molecule.coeff_MO.size() ) );
-		}
-		else {
-			copy( mo_c.begin(),mo_c.end(),back_inserter(molecule.coeff_MO_beta) );
-			m_log->input_message("Number of beta MO vectors: \n\t");
-			m_log->input_message( int( molecule.coeff_MO_beta.size() ) );
+			file.close();			
+			if ( !beta ) {
+				copy( mo_c.begin(),mo_c.end(),back_inserter(molecule.coeff_MO) );
+				m_log->input_message("Number of MO vectors: \n\t");
+				m_log->input_message( int( molecule.coeff_MO.size() ) );
+			}
+			else {
+				copy( mo_c.begin(),mo_c.end(),back_inserter(molecule.coeff_MO_beta) );
+				m_log->input_message("Number of beta MO vectors: \n\t");
+				m_log->input_message( int( molecule.coeff_MO_beta.size() ) );
+			}			
+		}else{		
+			std::ifstream buf(name_f);
+			while( std::getline(buf,tmp_line) ){				
+				Iline Line(tmp_line);
+				if ( in_indx == -1 ){
+					if ( Line.IF_word( keyword,0,keyword.size() ) ){
+						in_indx = nLines;
+					}
+				}else if ( in_indx > 0 && nMO < nMO_out){
+					std::stringstream ssline(tmp_line);
+					while ( ssline >> temp ){
+						mo_c.push_back(temp);
+						nMO++;
+					}
+				}else{
+					break;
+				}
+				nLines++;
+			}
+			buf.close();
+			if ( !beta ) {
+				copy( mo_c.begin(),mo_c.end(),back_inserter(molecule.coeff_MO) );
+				m_log->input_message("Number of MO vectors: \n\t");
+				m_log->input_message( int( molecule.coeff_MO.size() ) );
+			}
+			else {
+				copy( mo_c.begin(),mo_c.end(),back_inserter(molecule.coeff_MO_beta) );
+				m_log->input_message("Number of beta MO vectors: \n\t");
+				m_log->input_message( int( molecule.coeff_MO_beta.size() ) );
+			}
 		}
 	}else{
 		string message = "Not possible to open the file: ";
@@ -843,6 +943,34 @@ void mopac_files::get_mo_energies(bool beta){
 	string tmpt;
 	
 	if ( IF_file(name_f) ){
+		
+		if ( check_file_ext(".gz", name_f ) ){			
+			std::ifstream file(name_f, std::ios_base::in | std::ios_base::binary);
+			boost::iostreams::filtering_streambuf<input> inp;
+			inp.push(gzip_decompressor());
+			inp.push(file);
+				
+			std::istreambuf_iterator<char> it(&inp);
+			std::istreambuf_iterator<char> eos;
+			std::istream input_stream(&inp);
+			
+			while( getline(input_stream, tmp_line) ){
+				Iline Line(tmp_line);
+				if ( in_indx == -1) {
+					if ( Line.IF_word( keyword,0,keyword.size() ) ) in_indx = nLines;
+				}else if ( in_indx >0 && nMO < nMO_out ) {
+					std::stringstream ssline(tmp_line);
+					while ( ssline >> temp ){
+						mo_c.push_back(temp);
+						nMO++;
+					}
+				}else{
+					break;
+				}
+				nLines++;
+			}
+		
+		
 		std::ifstream buf(name_f);
 		while( !buf.eof() ){
 			buf.getline(tmp_line,150);

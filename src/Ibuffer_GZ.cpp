@@ -39,6 +39,46 @@ using boost::iostreams::input;
 using boost::iostreams::gzip_decompressor;
 
 /******************************************************************/
+Ibuffer_GZ::Ibuffer_GZ():
+	nLines(0)           ,
+	name("empty")       ,
+	parsed(false)       {	
+}
+/******************************************************************/
+Ibuffer_GZ::Ibuffer_GZ(const Ibuffer_GZ& rhs_ibuf):
+	nLines( rhs_ibuf.nLines ),
+	name  ( rhs_ibuf.name   ),
+	parsed( rhs_ibuf.parsed ),
+	lines ( rhs_ibuf.lines  ){	
+}
+/******************************************************************/
+Ibuffer_GZ& Ibuffer_GZ::operator=(const Ibuffer_GZ& rhs_ibuf){
+	if ( this != &rhs_ibuf ){
+		nLines = rhs_ibuf.nLines;
+		name   = rhs_ibuf.name;
+		parsed = rhs_ibuf.parsed;
+		lines  = rhs_ibuf.lines;
+	}
+	return *this;
+}
+/******************************************************************/
+Ibuffer_GZ::Ibuffer_GZ(Ibuffer_GZ&& rhs_ibuf) noexcept:
+	nLines( move(rhs_ibuf.nLines ) ),
+	name  ( move(rhs_ibuf.name   ) ),
+	parsed( move(rhs_ibuf.parsed ) ),
+	lines ( move(rhs_ibuf.lines  ) ){	
+}
+/******************************************************************/
+Ibuffer_GZ& Ibuffer_GZ::operator=(Ibuffer_GZ&& rhs_ibuf) noexcept{
+	if ( this != &rhs_ibuf ){
+		nLines = move(rhs_ibuf.nLines);
+		name   = move(rhs_ibuf.name);
+		parsed = move(rhs_ibuf.parsed);
+		lines  = move(rhs_ibuf.lines);
+	}
+	return *this;
+}
+/******************************************************************/
 Ibuffer_GZ::Ibuffer_GZ(const char* file_name,
 						bool parse      	):
 	nLines(0)								,
@@ -118,27 +158,33 @@ Ibuffer_GZ::Ibuffer_GZ(const char* file_name,
 		
 	int in_indx  = -1;
 	int fin_indx = 0;
-	char tmp_line[500];
 		
 	if ( IF_file(file_name) ){
-		std::ifstream buf(file_name);
-		while( !buf.eof() ){
-			buf.getline(tmp_line,500);
+		ifstream file(file_name, std::ios_base::in | std::ios_base::binary);
+		boost::iostreams::filtering_streambuf<input> inp;
+		inp.push(gzip_decompressor());
+		inp.push(file);				
+		std::istreambuf_iterator<char> it(&inp);
+		std::istreambuf_iterator<char> eos;
+		std::istream input_stream(&inp);	
+		
+		string tmp_line; 
+		while( getline(input_stream,tmp_line) ){		
 			Iline Line(tmp_line);
 			if ( in_indx == -1 ){
 				if ( Line.words[0].compare(0,wrdin.size(),wrdin) == 0  ){
 					in_indx = nLines;
-					lines.emplace_back( Line );
+					lines.emplace_back( move(Line) );
 				}
 			}else if ( in_indx >= 0 ){
-				lines.emplace_back( Line );
+				lines.emplace_back( move(Line) );
 				if ( Line.IF_word( wrdfin,0,wrdfin.size() ) ) {
 					break;
 				}
 			}
 			nLines++;
 		}
-		buf.close();
+		file.close();
 		nLines = lines.size();
 	}else{
 		string message = "Not possible to open the file: ";
@@ -157,12 +203,18 @@ Ibuffer_GZ::Ibuffer_GZ(const char* file_name		,
 	
 	int in_indx  = -1;
 	int fin_indx = 0;
-	char tmp_line[500];
+	string tmp_line;
 	
 	if ( IF_file(file_name) ){
-		ifstream buf(file_name);
-		while( !buf.eof() ){
-			buf.getline(tmp_line,500);
+		ifstream file(file_name, std::ios_base::in | std::ios_base::binary);
+		boost::iostreams::filtering_streambuf<input> inp;
+		inp.push(gzip_decompressor());
+		inp.push(file);				
+		std::istreambuf_iterator<char> it(&inp);
+		std::istreambuf_iterator<char> eos;
+		std::istream input_stream(&inp);	
+			
+		while( getline(input_stream,tmp_line) ){
 			Iline Line (tmp_line);
 			if ( in_indx == -1 ){
 				for(unsigned int i=0;i<wrds_in.size(); i++){
@@ -177,31 +229,16 @@ Ibuffer_GZ::Ibuffer_GZ(const char* file_name		,
 					if ( Line.IF_word( wrds_fin[j],0,wrds_fin[j].size() ) ) {
 						if ( fin_indx == 0 ) 
 							fin_indx = nLines;
-						break;
+							break;
 					}
 				}
 			}
 			nLines++;
 		}
-		if ( in_indx >=0 ){
-			buf.close();
-			ifstream buf2(file_name);
-			nLines = 0;
-			int real_nlines = 0;
-			while( !buf2.eof() ){
-				buf2.getline(tmp_line,500);
-				if ( nLines > in_indx && nLines < fin_indx  ){
-					lines.emplace_back( tmp_line );
-					real_nlines++;
-				}
-				if ( nLines == fin_indx ) {	break; }
-				nLines++;
-			}
-			nLines = real_nlines;
-			buf2.close();
-		}else{
-			nLines = 0;
-		}
+		Ibuffer_GZ buf(file_name,in_indx,fin_indx);
+		lines  = move(buf.lines);
+		nLines = move(buf.nLines);
+		parsed = move(buf.parsed);
 	}else{
 		string message = "Not possible to open the file: ";
 		message += name;
@@ -220,12 +257,18 @@ Ibuffer_GZ& Ibuffer_GZ::get_block(int in, int fin){
 	}else{
 		if ( IF_file(name) ){
 			if ( in !=0 ){
-				ifstream buf(name);
+				ifstream file(name, std::ios_base::in | std::ios_base::binary);
+				boost::iostreams::filtering_streambuf<input> inp;
+				inp.push(gzip_decompressor());
+				inp.push(file);				
+				std::istreambuf_iterator<char> it(&inp);
+				std::istreambuf_iterator<char> eos;
+				std::istream input_stream(&inp);
+							
 				nLines = 0;
 				string tmp_line;
 				int real_nlines = 0;
-				while( !buf.eof() ){
-					getline(buf,tmp_line);
+				while( getline(input_stream,tmp_line) ){
 					if ( nLines > in && nLines < fin  ){
 						lines.emplace_back( move (tmp_line) );
 						real_nlines++;
@@ -234,7 +277,7 @@ Ibuffer_GZ& Ibuffer_GZ::get_block(int in, int fin){
 					nLines++;
 				}
 				nLines = real_nlines;
-				buf.close();
+				file.close();
 				parsed = true;
 			}else{
 				nLines = 0;

@@ -46,8 +46,10 @@ class Ibuffer_GZ {
 		Ibuffer_GZ(const char* file_name,int in, int fin); // constructor to store info from file path from block of lines.
 		Ibuffer_GZ(const char* file_name,std::string wrdin,std::string wrdfin); // constructor to store info from file path from block of lines.
 		Ibuffer_GZ(const char* file_name, std::vector<std::string>& wrds_in,std::vector<std::string>& wrds_fin);// constructor to store info from file path from block of lines.
-		Ibuffer_GZ(const Ibuffer_GZ& rhs_ibuf) = delete; // copy constructor deleted
-		Ibuffer_GZ& operator=(const Ibuffer_GZ& rhs_ibuf) = delete;// assign operator overload deleted.
+		Ibuffer_GZ(const Ibuffer_GZ& rhs_ibuf);
+		Ibuffer_GZ& operator=(const Ibuffer_GZ& rhs_ibuf);
+		Ibuffer_GZ(Ibuffer_GZ&& rhs_buff) noexcept;
+		Ibuffer_GZ& operator=(Ibuffer_GZ&& rhs_buff) noexcept;
 		Ibuffer_GZ& get_block(int in, int fin); // Retunrn a class object as a block of lines from the current one.
 		void clear();
 		~Ibuffer_GZ(); // Destructor.
