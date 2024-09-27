@@ -221,10 +221,14 @@ void interface::test_run(){
 	//teste.test_traj_analysis();
 	
 	std::string file_name = "/home/igorchem/Downloads/fernanda/1df8/1df8_A_D128A_06.com.aux.tar.gz";
-	std::string file_name_aux = "/home/igorchem/Downloads/fernanda/1df8/1df8_A_D128A_06.com.aux";
-	//std::string file_name = "/home/igorchem/Downloads/fernanda/1df8/1df8_A_D128A_06.lig.aux.tar.gz";
+	std::string file_name_aux = "/home/igorchem/Downloads/fernanda/1df8/1df8_A_D128A_06.lig.aux";
+	std::string file_name_lig = "/home/igorchem/Downloads/fernanda/1df8/1df8_A_D128A_06.lig.aux.tar.gz";
 	//Ibuffer_GZ buf(file_name.c_str(),true); //62444847
-	Ibuffer buf(file_name_aux.c_str(),true); //62444847
+	QMparser buf(file_name_lig.c_str(),"mopac");
+	QMparser buf2(file_name_aux.c_str(),"mopac");
+	Imolecule mol = buf.get_molecule();
+	Imolecule mol2 = buf2.get_molecule();
+	
 }
 /***********************************************************************/
 void interface::write_input(){

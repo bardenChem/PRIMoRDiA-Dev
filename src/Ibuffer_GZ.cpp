@@ -177,7 +177,7 @@ Ibuffer_GZ::Ibuffer_GZ(const char* file_name,
 					lines.emplace_back( move(Line) );
 				}
 			}else if ( in_indx >= 0 ){
-				lines.emplace_back( move(Line) );
+				lines.emplace_back( Line );
 				if ( Line.IF_word( wrdfin,0,wrdfin.size() ) ) {
 					break;
 				}

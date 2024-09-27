@@ -113,7 +113,7 @@ mopac_files::mopac_files(const char* file_name):
 		if ( check_file_ext(".aux",file_name )  or check_file_ext(".gz",file_name ) ) {
 			type = "AUX";
 			Ibuffer Buffer;
-			if ( check_file_ext("gz",file_name ) ){
+			if ( check_file_ext(".gz",file_name ) ){
 				Ibuffer_GZ Buffer_GZ(file_name,_keywords,_overlap);
 				Buffer.nLines = Buffer_GZ.nLines;
 				Buffer.lines  = move(Buffer_GZ.lines);
@@ -873,17 +873,7 @@ void mopac_files::get_mo(bool beta){
 				}
 				nLines++;
 			}
-			file.close();			
-			if ( !beta ) {
-				copy( mo_c.begin(),mo_c.end(),back_inserter(molecule.coeff_MO) );
-				m_log->input_message("Number of MO vectors: \n\t");
-				m_log->input_message( int( molecule.coeff_MO.size() ) );
-			}
-			else {
-				copy( mo_c.begin(),mo_c.end(),back_inserter(molecule.coeff_MO_beta) );
-				m_log->input_message("Number of beta MO vectors: \n\t");
-				m_log->input_message( int( molecule.coeff_MO_beta.size() ) );
-			}			
+			file.close();						
 		}else{		
 			std::ifstream buf(name_f);
 			while( std::getline(buf,tmp_line) ){				
@@ -904,16 +894,16 @@ void mopac_files::get_mo(bool beta){
 				nLines++;
 			}
 			buf.close();
-			if ( !beta ) {
-				copy( mo_c.begin(),mo_c.end(),back_inserter(molecule.coeff_MO) );
-				m_log->input_message("Number of MO vectors: \n\t");
-				m_log->input_message( int( molecule.coeff_MO.size() ) );
-			}
-			else {
-				copy( mo_c.begin(),mo_c.end(),back_inserter(molecule.coeff_MO_beta) );
-				m_log->input_message("Number of beta MO vectors: \n\t");
-				m_log->input_message( int( molecule.coeff_MO_beta.size() ) );
-			}
+			
+		}
+		if ( !beta ) {
+			copy( mo_c.begin(),mo_c.end(),back_inserter(molecule.coeff_MO) );
+			m_log->input_message("Number of MO vectors: \n\t");
+			m_log->input_message( int( molecule.coeff_MO.size() ) );
+		}else {
+			copy( mo_c.begin(),mo_c.end(),back_inserter(molecule.coeff_MO_beta) );
+			m_log->input_message("Number of beta MO vectors: \n\t");
+			m_log->input_message( int( molecule.coeff_MO_beta.size() ) );
 		}
 	}else{
 		string message = "Not possible to open the file: ";
@@ -939,7 +929,7 @@ void mopac_files::get_mo_energies(bool beta){
 	int fin_indx			= nAO/10;
 	std::vector<double> mo_c;
 	
-	char tmp_line[150];
+	string tmp_line;
 	string tmpt;
 	
 	if ( IF_file(name_f) ){
@@ -957,8 +947,16 @@ void mopac_files::get_mo_energies(bool beta){
 			while( getline(input_stream, tmp_line) ){
 				Iline Line(tmp_line);
 				if ( in_indx == -1) {
-					if ( Line.IF_word( keyword,0,keyword.size() ) ) in_indx = nLines;
-				}else if ( in_indx >0 && nMO < nMO_out ) {
+					if ( Line.IF_word( keyword,0,keyword.size() ) ) {
+						in_indx = nLines;
+						fin_indx +=  nLines +1;
+						tmpt = Line.words[0].substr(keyword.size(),Line.words[0].size());
+						tmpt = tmpt.substr(0,tmpt.size()-2);
+						if ( nAO != stoi(tmpt)  ){
+							m_log->write_warning("The molecular orbitals set are imcomplete!");
+						}
+					}
+				}else if ( in_indx >0 && mo_c.size() < nAO ) {
 					std::stringstream ssline(tmp_line);
 					while ( ssline >> temp ){
 						mo_c.push_back(temp);
@@ -968,33 +966,33 @@ void mopac_files::get_mo_energies(bool beta){
 					break;
 				}
 				nLines++;
-			}
-		
-		
-		std::ifstream buf(name_f);
-		while( !buf.eof() ){
-			buf.getline(tmp_line,150);
-			Iline Line(tmp_line);
-			if ( in_indx == -1 ){
-				if ( Line.IF_word( keyword,0,keyword.size() ) ) {
-					in_indx = nLines;
-					fin_indx +=  nLines +1;
-					tmpt = Line.words[0].substr(keyword.size(),Line.words[0].size());
-					tmpt = tmpt.substr(0,tmpt.size()-2);
-					if ( nAO != stoi(tmpt)  ){
-						m_log->write_warning("The molecular orbitals set are imcomplete!");
+				file.close();
+			}		
+		}else{
+			std::ifstream buf(name_f);
+			while( std::getline(buf,tmp_line) ){
+				Iline Line(tmp_line);
+				if ( in_indx == -1 ){
+					if ( Line.IF_word( keyword,0,keyword.size() ) ) {
+						in_indx = nLines;
+						fin_indx +=  nLines +1;
+						tmpt = Line.words[0].substr(keyword.size(),Line.words[0].size());
+						tmpt = tmpt.substr(0,tmpt.size()-2);
+						if ( nAO != stoi(tmpt)  ){
+							m_log->write_warning("The molecular orbitals set are imcomplete!");
+						}
+					}
+				}else if ( in_indx > 0 && mo_c.size() < nAO ){
+					std::stringstream ssline(tmp_line);
+					while ( ssline >> temp ){
+						mo_c.push_back(temp);
+						nMO++;
 					}
 				}
-			}else if ( in_indx > 0 && mo_c.size() < nAO ){
-				std::stringstream ssline(tmp_line);
-				while ( ssline >> temp ){
-					mo_c.push_back(temp);
-				}
-				nMO++;
+				nLines++;
 			}
-			nLines++;
+			buf.close();
 		}
-		buf.close();
 		if ( !beta ) {
 			copy( mo_c.begin(),mo_c.end(),back_inserter(molecule.orb_energies) );
 			molecule.MOnmb = molecule.orb_energies.size();
@@ -1009,15 +1007,13 @@ void mopac_files::get_mo_energies(bool beta){
 					m_log->input_message(keyword);
 					m_log->input_message("\n");
 				}
-			}
-		}
-		else {
+			}			
+		}else{
 			copy( mo_c.begin(),mo_c.end(),back_inserter(molecule.orb_energies_beta) );
 			m_log->input_message("Number of beta MO energy levels: \n\t");
 			m_log->input_message( int( molecule.orb_energies_beta.size() ) );
 			molecule.MOnmb_beta = molecule.orb_energies_beta.size();
-		}
-		
+		}		
 	}else{
 		string message = "Not possible to open the file: ";
 		message += name_f;
@@ -1041,40 +1037,74 @@ void mopac_files::get_mo_occupancies(bool beta){
 	int fin_indx			= nAO/10;
 	std::vector<double> mo_c;
 	
-	char tmp_line[150];
+	string tmp_line;
 	string tmpt;
 	
 	if ( IF_file(name_f) ){
-		std::ifstream buf(name_f);
-		while( !buf.eof() ){
-			buf.getline(tmp_line,150);
-			Iline Line(tmp_line);
-			if ( in_indx == -1 ){
-				if ( Line.IF_word( keyword,0,keyword.size() ) ) {
-					in_indx = nLines;
-					fin_indx +=  nLines +1;
-					tmpt = Line.words[0].substr(keyword.size(),Line.words[0].size());
-					tmpt = tmpt.substr(0,tmpt.size()-2);
-					if ( nAO != stoi(tmpt)  ){
-						m_log->write_warning("The molecular orbitals set are imcomplete!");
+		
+		
+		if ( check_file_ext(".gz", name_f ) ){			
+			std::ifstream file(name_f, std::ios_base::in | std::ios_base::binary);
+			boost::iostreams::filtering_streambuf<input> inp;
+			inp.push(gzip_decompressor());
+			inp.push(file);
+				
+			std::istreambuf_iterator<char> it(&inp);
+			std::istreambuf_iterator<char> eos;
+			std::istream input_stream(&inp);
+			
+			while( getline(input_stream, tmp_line) ){
+				Iline Line(tmp_line);
+				if ( in_indx == -1 ){
+					if ( Line.IF_word( keyword,0,keyword.size() ) ) {
+						in_indx = nLines;
+						fin_indx +=  nLines +1;
+						tmpt = Line.words[0].substr(keyword.size(),Line.words[0].size());
+						tmpt = tmpt.substr(0,tmpt.size()-2);
+						if ( nAO != stoi(tmpt)  ){
+							m_log->write_warning("The molecular orbitals set are imcomplete!");
+						}
+					}else if ( in_indx > 0 && mo_c.size() < nAO ){
+						std::stringstream ssline(tmp_line);
+						while ( ssline >> temp ){
+							mo_c.push_back(temp);
+							nMO++;
+						}
 					}
+				nLines++;
 				}
-			}else if ( in_indx > 0 && mo_c.size() < nAO ){
-				std::stringstream ssline(tmp_line);
-				while ( ssline >> temp ){
-					mo_c.push_back(temp);
-				}
-				nMO++;
 			}
-			nLines++;
+			file.close();
+		}else{
+			std::ifstream buf(name_f);
+			while( std::getline(buf,tmp_line) ){
+				Iline Line(tmp_line);
+				if ( in_indx == -1 ){
+					if ( Line.IF_word( keyword,0,keyword.size() ) ) {
+						in_indx = nLines;
+						fin_indx +=  nLines +1;
+						tmpt = Line.words[0].substr(keyword.size(),Line.words[0].size());
+						tmpt = tmpt.substr(0,tmpt.size()-2);
+						if ( nAO != stoi(tmpt)  ){
+							m_log->write_warning("The molecular orbitals set are imcomplete!");
+						}
+					}
+				}else if ( in_indx > 0 && mo_c.size() < nAO ){
+					std::stringstream ssline(tmp_line);
+					while ( ssline >> temp ){
+						mo_c.push_back(temp);
+					}
+					nMO++;
+				}
+				nLines++;
+			}
+			buf.close();
 		}
-		buf.close();
 		if ( !beta ) {
 			copy( mo_c.begin(),mo_c.end(),back_inserter(molecule.occupied) );
 			m_log->input_message("Number of MO occupancies read: \n\t");
 			m_log->input_message( int( molecule.occupied.size() ) );
-		}
-		else {
+		}else {
 			copy( mo_c.begin(),mo_c.end(),back_inserter(molecule.occupied_beta) );
 			m_log->input_message("Number of beta MO occupancies read: \n\t");
 			m_log->input_message( int( molecule.occupied_beta.size() ) );
