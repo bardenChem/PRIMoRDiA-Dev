@@ -317,9 +317,12 @@ void mopac_files::parse_aux(){
 	counter = 0;
 	
 	for (unsigned i=_in[6]; i<_out[6]; i++){
-		for (unsigned j=0;j<Buffer.lines[i].words.size();j++){
-			molecule.atoms[counter++].charge = Buffer.lines[i].get_double(j);
+		if ( counter < molecule.atoms.size() ){
+			for (unsigned j=0;j<Buffer.lines[i].words.size();j++){
+				molecule.atoms[counter++].charge = Buffer.lines[i].get_double(j);
+			}	
 		}
+		
 	}
 		
 	if ( molecule.atoms.size() == 0 ){ 
@@ -786,15 +789,15 @@ void mopac_files::get_overlap_m(){
 			while( getline(input_stream, tmp_line) ){
 				Iline Line(tmp_line);
 				if ( in_indx == -1) {
-					if ( Line.IF_word( _overlap,0,_overlap.size() ) ) in_indx = nLines;
-					else if ( in_indx >0 && molecule.m_overlap.size() < fin_indx) {
-						std::stringstream ssline(tmp_line);
-						while ( ssline >> temp ){
-							molecule.m_overlap.push_back(temp);
-						}
+					if ( Line.IF_word( _overlap,0,_overlap.size() ) )
+					in_indx = nLines;
+				}else if ( in_indx >0 && molecule.m_overlap.size() < fin_indx ) {
+					std::stringstream ssline(tmp_line);
+					while ( ssline >> temp ){
+						molecule.m_overlap.push_back(temp);
 					}
-				nLines++;
 				}
+				nLines++;
 			}
 			file.close();
 			m_log->input_message("Size of Overlap matrix: \n\t");
@@ -861,7 +864,9 @@ void mopac_files::get_mo(bool beta){
 			while( getline(input_stream, tmp_line) ){
 				Iline Line(tmp_line);
 				if ( in_indx == -1) {
-					if ( Line.IF_word( keyword,0,keyword.size() ) ) in_indx = nLines;
+					if ( Line.IF_word( keyword,0,keyword.size() ) ){
+						in_indx = nLines;						
+					}
 				}else if ( in_indx >0 && nMO < nMO_out ) {
 					std::stringstream ssline(tmp_line);
 					while ( ssline >> temp ){
@@ -962,12 +967,10 @@ void mopac_files::get_mo_energies(bool beta){
 						mo_c.push_back(temp);
 						nMO++;
 					}
-				}else{
-					break;
 				}
 				nLines++;
-				file.close();
 			}		
+			file.close();
 		}else{
 			std::ifstream buf(name_f);
 			while( std::getline(buf,tmp_line) ){
