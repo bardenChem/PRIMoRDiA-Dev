@@ -156,6 +156,10 @@ string remove_extension(const char* file_name){
 	string file_name_string  = file_name;
 	int point = 0;
 	char dot = '.';
+	
+	if ( file_name_string.substr( file_name_string.size()-11,file_name_string.size() )  == ".aux.tar.gz" ){
+		return file_name_string.substr(0,file_name_string.size()-11);			
+	}
 	for(unsigned int i = 0;i<file_name_string.size();i++){
 		char character = file_name_string[i];
 		if ( character == dot){	point = i; }

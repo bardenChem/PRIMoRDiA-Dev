@@ -295,8 +295,17 @@ void interface::write_input(){
 				if ( option == 1 || option == 3 ){
 					inp_file << option << " " << fnames[i] << " " << lh << " " << grid << " " << program << " " << mep << endl;
 				}
-			}			
+			}	
+			else if( check_file_ext(".gz", fnames[i].c_str()) ){
+				if ( option == 3 ){
+					
+					inp_file << option << " " << fnames[i] << " " <<	lh << " " << grid << " " << band << " " << " "
+							 << change_extension(fnames[i].c_str(),".pdb") << " " << program << " " << " "
+							 << 0 << " " <<  0  << " " <<  0  << " " << 0 << " " << band_method << " " << mep << endl;
+				}
+			}	
 		}
+		
 		else if ( program == "gamess"){
 			if ( check_file_ext(".log",fnames[i].c_str()) ){
 				if ( option == 1 )
