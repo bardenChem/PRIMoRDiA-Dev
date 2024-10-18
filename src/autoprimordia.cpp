@@ -85,6 +85,10 @@ AutoPrimordia::AutoPrimordia(const char* file_list):
 void AutoPrimordia::init(){
 	if		( run_type == "normal" )
 		this->calculate_rd();
+	else if ( run_type == "protein_list" ) {
+		this->calculate_rd();
+		this->md_trajectory_analysis();		
+	}		
 	else if	( run_type == "trajectory" ){
 		this->calculate_rd_from_traj();
 		this->md_trajectory_analysis();
