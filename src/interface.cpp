@@ -290,12 +290,13 @@ void interface::write_input(){
 								<< " "	<<	change_extension(fnames[i].c_str(),"_an.mgf")	<< " "
 								<< lh	<<	" " << grid  << " " << 1 << " " << program << " " <<  mep << endl;
 				}
-			}		
+			}
+			/*
 			else if( check_file_ext(".out", fnames[i].c_str()) ){
 				if ( option == 1 || option == 3 ){
 					inp_file << option << " " << fnames[i] << " " << lh << " " << grid << " " << program << " " << mep << endl;
 				}
-			}	
+			} */	
 			else if( check_file_ext(".gz", fnames[i].c_str()) ){
 				if ( option == 3 ){
 					

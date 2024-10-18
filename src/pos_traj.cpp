@@ -334,6 +334,40 @@ void traj_rd::write_residues_reports(){
 	}
 	pro_avg.close();
 	
+	string fname_lh = "local_hardness_Vee_all";
+	std::ofstream pro_lh( fname_lh.c_str() );
+	pro_lh << "frame ";
+	for( unsigned i=0; i<frames[0].residues_rd.size(); i++){
+		pro_lh << frames[0].labels[i] << " ";
+	}
+	pro_lh << "\n";
+	
+	for( unsigned i=0; i<frames.size();i++ ){
+		pro_lh << i << " ";
+		for( unsigned j=0; j<frames[i].residues_rd.size(); j++){
+			pro_lh << frames[i].residues_rd[j].rd_sum[4] << " ";
+		}
+		pro_lh << "\n";
+	}
+	pro_lh.close();
+	
+	string fname_net = "netphilicity_all";
+	std::ofstream pro_net( fname_net.c_str() );
+	pro_net << "frame ";
+	for( unsigned i=0; i<frames[0].residues_rd.size(); i++){
+		pro_net << frames[0].labels[i] << " ";
+	}
+	pro_net << "\n";
+	
+	for( unsigned i=0; i<frames.size();i++ ){
+		pro_net << i << " ";
+		for( unsigned j=0; j<frames[i].residues_rd.size(); j++){
+			pro_net << frames[i].residues_rd[j].rd_sum[3] << " ";
+		}
+		pro_net << "\n";
+	}
+	pro_net.close();
+	
 }
 /******************************************************************/
 void traj_rd::gradient(){
