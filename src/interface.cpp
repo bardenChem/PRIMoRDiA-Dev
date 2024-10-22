@@ -224,10 +224,13 @@ void interface::test_run(){
 	std::string file_name_aux = "/home/igorchem/Downloads/fernanda/1df8/1df8_A_D128A_06.lig.aux";
 	std::string file_name_lig = "/home/igorchem/Downloads/fernanda/1df8/1df8_A_D128A_06.lig.aux.tar.gz";
 	//Ibuffer_GZ buf(file_name.c_str(),true); //62444847
-	QMparser buf(file_name_lig.c_str(),"mopac");
-	QMparser buf2(file_name_aux.c_str(),"mopac");
-	Imolecule mol = buf.get_molecule();
-	Imolecule mol2 = buf2.get_molecule();
+	//QMparser buf(file_name_lig.c_str(),"mopac");
+	//QMparser buf2(file_name_aux.c_str(),"mopac");
+	//Imolecule mol = buf.get_molecule();
+	//Imolecule mol2 = buf2.get_molecule();
+	
+	AutoPrimordia run_test("/home/igorchem/Documents/primordia_aux_dev/primordia_aux_dev/primordia.input");
+	run_test.init();
 	
 }
 /***********************************************************************/
