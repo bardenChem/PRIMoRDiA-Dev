@@ -157,18 +157,22 @@ string remove_extension(const char* file_name){
 	int point = 0;
 	char dot = '.';
 	
-	
-	if ( file_name_string.substr( file_name_string.size()-11,file_name_string.size() )  == ".aux.tar.gz" ){
-		return file_name_string.substr(0,file_name_string.size()-11);			
-	}else if ( file_name_string.substr( file_name_string.size()-7,file_name_string.size() )  == ".aux.gz" ) {
-		return file_name_string.substr(0,file_name_string.size()-7);
+	try {
+		if ( file_name_string.substr( file_name_string.size()-11,file_name_string.size() )  == ".aux.tar.gz" ){
+			return file_name_string.substr(0,file_name_string.size()-11);			
+		}else if ( file_name_string.substr( file_name_string.size()-7,file_name_string.size() )  == ".aux.gz" ) {
+			return file_name_string.substr(0,file_name_string.size()-7);
+		}
+		for(unsigned int i = 0;i<file_name_string.size();i++){
+			char character = file_name_string[i];
+			if ( character == dot){	point = i; }
+		}
+		int pos = file_name_string.size()-point;
+		return file_name_string.substr(0,file_name_string.size()-pos);
+	}catch( const std::out_of_range ){
+		std::cout << file_name_string << std::endl;
+		std::cout << file_name_string.size();
 	}
-	for(unsigned int i = 0;i<file_name_string.size();i++){
-		char character = file_name_string[i];
-		if ( character == dot){	point = i; }
-	}
-	int pos = file_name_string.size()-point;
-	return file_name_string.substr(0,file_name_string.size()-pos);
 }
 /*********************************************************************************/
 string change_extension(const char* file_name,string new_ext){
