@@ -122,8 +122,7 @@ void AutoPrimordia::calculate_rd(){
 	//------------------------------------------------------
 	//opening the file again
 	Ibuffer list_f (m_file_list,true);
-	
-	
+		
 	omp_set_num_threads(NP);
 	#pragma omp parallel
 	{		
@@ -177,7 +176,7 @@ void AutoPrimordia::calculate_rd(){
 						rd.init_protein_RD(neut,locHard,gridsize,bgap,r_atom,sze,cation,mep,btm,program);
 					break;
 				}
-				RDs.emplace_back( move(rd) ); 
+				RDs.emplace_back(rd); 
 			}
 		}
 	}	
