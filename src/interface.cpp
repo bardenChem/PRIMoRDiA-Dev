@@ -229,7 +229,7 @@ void interface::test_run(){
 	//Imolecule mol = buf.get_molecule();
 	//Imolecule mol2 = buf2.get_molecule();
 	//AutoPrimordia run_test("/home/igorchem/Documents/primordia_aux_dev/primordia_aux_dev/primordia.input");
-	AutoPrimordia run_test("/home/igorchem/CCDIR/Pub_LI/cluster/primordia.input");
+	AutoPrimordia run_test("/home/igorchem/CCDIR/Pub_LI/cluster_IMI_RD/primordia.input");
 	run_test.init();
 	
 }
