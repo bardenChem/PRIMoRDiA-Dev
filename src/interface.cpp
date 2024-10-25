@@ -127,11 +127,11 @@ void interface::run(){
 	}	
 	else if ( runtyp == "-p_traj" ){
 		std::vector<int> rs_l;
-		if ( m_argc > 2 ){
-			for(int i=2;i<m_argc;i++){
+		if ( m_argc > 3 ){
+			for(int i=3;i<m_argc;i++){
 				rs_l.push_back( stoi(m_argv[i] ) );
 			}
-			traj_rd traj(rs_l);
+			traj_rd traj(rs_l, m_argv[2].c_str() );
 			traj.init_from_folder();
 			traj.calculate_res_stats();
 			traj.write_residues_reports();

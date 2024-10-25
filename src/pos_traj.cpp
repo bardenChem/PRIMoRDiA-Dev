@@ -48,14 +48,14 @@ traj_rd::traj_rd()		:
 	user_path("no_path"){	
 }
 /****************************************************/
-traj_rd::traj_rd( vector<int> res ) :
-	user_path("no_path")			,
-	res_list(res)					{
+traj_rd::traj_rd( vector<int> res, const char* _path ):
+	user_path(_path)								  ,
+	res_list(res)									  {
 	
 	res_avg.resize(19);
 	res_avg_all.resize(19);
 	res_sd.resize(19);
-	
+		
 	for( int i=0; i<res_list.size(); i++ ) res_list[i] -= 1;
 }
 /****************************************************/
@@ -198,8 +198,7 @@ void traj_rd::init_from_folder(){
 		if ( IF_file( fnames[i].c_str() ) ){
 			std::ifstream fr_fle( fnames[i].c_str() );
 			int line = 0;
-			while( !fr_fle.eof() ){
-				getline(fr_fle,Line);
+			while( getline(fr_fle,Line) ){
 				if ( line > 0 ){
 					residue_lrd residue;
 					Iline line_obj(Line);
@@ -220,6 +219,7 @@ void traj_rd::init_from_folder(){
 				}
 				line++;
 			}
+			fr_fle.close();
 		if ( Frame.residues_rd.size() > 2 )
 			frames.push_back(Frame);
 		}

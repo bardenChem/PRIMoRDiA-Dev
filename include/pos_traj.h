@@ -34,7 +34,7 @@ class traj_rd{
 		std::vector< std::vector< std::vector<double> > > atoms_rd; 
 		//---------------------------------------------------
 		traj_rd();
-		traj_rd( std::vector<int> res );
+		traj_rd( std::vector<int> res,  const char* _path );
 		traj_rd( std::vector<primordia>& rds, std::vector<int>& ats, std::vector<int> res);
 		~traj_rd();
 		traj_rd(const traj_rd& rhs_traj) = delete;

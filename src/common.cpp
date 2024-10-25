@@ -25,6 +25,7 @@
 #include <omp.h>
 #include <fstream>
 #include <experimental/filesystem>
+#include <filesystem>
 
 #include "../include/common.h"
 
@@ -135,19 +136,19 @@ bool IF_file(fs::path& name){
 }
 /*********************************************************************************/
 bool check_file_ext(string ext,const char* file_name){
-	fs::path f_name(file_name);
+	std::filesystem::path f_name(file_name);
 	if ( f_name.extension() == ext ) return true;
 	else return false;
 }
 /*********************************************************************************/
 string get_file_name(const char* path_name){
-	fs::path f_name(path_name);
+	std::filesystem::path f_name(path_name);
 	string resultS( f_name.filename() );
 	return resultS;
 }
 /*********************************************************************************/
 string get_file_ext(const char* path_name){
-	fs::path f_name(path_name);
+	std::filesystem::path f_name(path_name);
 	string resultS( f_name.extension() );
 	return resultS;
 }
@@ -192,15 +193,16 @@ string remove_extension(const char* file_name){
 }
 /*********************************************************************************/
 string change_extension(const char* file_name,string new_ext){
-	string name_wth_ext = remove_extension(file_name);
-	name_wth_ext += new_ext;
-	return name_wth_ext;
+	std::filesystem::path f_name(file_name);
+	std::filesystem::path n_ext(new_ext);
+	f_name = f_name.replace_extension(n_ext);
+	string resultS = f_name.filename();
+	return resultS;
 }
 /*********************************************************************************/
 void rename_file(const char* file_name,std::string new_file_name){
-	fs::path f_name(file_name);
-	fs::path nf_name( fs::current_path() / new_file_name );
-	fs::rename(f_name,nf_name);
+	std::filesystem::path f_name(file_name);
+	f_name = f_name.replace_filename(new_file_name);
 }
 /********************************************************************************/
 double D_E_conv(string sc_not){

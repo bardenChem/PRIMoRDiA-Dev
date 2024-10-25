@@ -123,63 +123,58 @@ void AutoPrimordia::calculate_rd(){
 	//opening the file again
 	Ibuffer list_f (m_file_list,true);
 		
-	omp_set_num_threads(NP);
-	#pragma omp parallel
-	{		
-		#pragma omp for
-		for ( i=1;i<list_f.nLines;i++ ){
-			if ( list_f.lines[i].words.size() <= 0 ){
-				m_log->input_message("There are no contents in the line! Verify your input file!\n");
-			}
-			else if ( list_f.lines[i].words[0][0] == '#' ){ continue; }
-			else{
-				mode = list_f.lines[i].get_int(0);
-				for ( unsigned j=0; j<list_f.lines[i].words.size(); j++ ){
-					if		( list_f.lines[i].words[j]  == "mep") mep = true;
-					else if ( list_f.lines[i].words[j]  == "vm" ) dens_tmp = list_f.lines[i].get_double(j+1);
-					else if ( list_f.lines[i].words[j]	== "EW" ) btm = "EW";
-					else if ( list_f.lines[i].words[j]	== "BD" ) btm = "BD";
-				}
-				m_log->inp_delim(2);
-				m_log->input_message("Starting New Entry!\n");
-				primordia rd;			
-				switch ( mode ){
-					case 1:
-						neut	= list_f.lines[i].words[1].c_str();
-						locHard	= list_f.lines[i].words[2];
-						gridsize= list_f.lines[i].get_int(3);
-						program	= list_f.lines[i].words[4];
-						rd.init_FOA(neut,gridsize,locHard,mep,program,dens_tmp);
-					break;
-					case 2:
-						neut	= list_f.lines[i].words[1].c_str();
-						cation	= list_f.lines[i].words[2].c_str();
-						anion	= list_f.lines[i].words[3].c_str();
-						locHard	= list_f.lines[i].words[4];
-						gridsize= list_f.lines[i].get_int(5);
-						charge	= list_f.lines[i].get_int(6);
-						program	= list_f.lines[i].words[7];
-						rd.init_FD(neut,cation,anion,gridsize,charge,mep,locHard,program,dens_tmp);
-					break;
-					case 3:
-						neut	= list_f.lines[i].words[1].c_str();
-						locHard	= list_f.lines[i].words[2];
-						gridsize= list_f.lines[i].get_int(3);
-						bgap	= list_f.lines[i].get_int(4);
-						cation	= list_f.lines[i].words[5].c_str();
-						program = list_f.lines[i].words[6];
-						double r_atom[3];
-						r_atom[0] = list_f.lines[i].get_double(7);
-						r_atom[1] = list_f.lines[i].get_double(8);
-						r_atom[2] = list_f.lines[i].get_double(9);
-						int sze   = list_f.lines[i].get_int(10);
-						rd.init_protein_RD(neut,locHard,gridsize,bgap,r_atom,sze,cation,mep,btm,program);
-					break;
-				}
-				RDs.emplace_back(rd); 
-			}
+	for ( i=1;i<list_f.nLines;i++ ){
+		if ( list_f.lines[i].words.size() <= 0 ){
+			m_log->input_message("There are no contents in the line! Verify your input file!\n");
 		}
-	}	
+		else if ( list_f.lines[i].words[0][0] == '#' ){ continue; }
+		else{
+			mode = list_f.lines[i].get_int(0);
+			for ( unsigned j=0; j<list_f.lines[i].words.size(); j++ ){
+				if		( list_f.lines[i].words[j]  == "mep") mep = true;
+				else if ( list_f.lines[i].words[j]  == "vm" ) dens_tmp = list_f.lines[i].get_double(j+1);
+				else if ( list_f.lines[i].words[j]	== "EW" ) btm = "EW";
+				else if ( list_f.lines[i].words[j]	== "BD" ) btm = "BD";
+			}
+			m_log->inp_delim(2);
+			m_log->input_message("Starting New Entry!\n");
+			primordia rd;			
+			switch ( mode ){
+				case 1:
+					neut	= list_f.lines[i].words[1].c_str();
+					locHard	= list_f.lines[i].words[2];
+					gridsize= list_f.lines[i].get_int(3);
+					program	= list_f.lines[i].words[4];
+					rd.init_FOA(neut,gridsize,locHard,mep,program,dens_tmp);
+				break;
+				case 2:
+					neut	= list_f.lines[i].words[1].c_str();
+					cation	= list_f.lines[i].words[2].c_str();
+					anion	= list_f.lines[i].words[3].c_str();
+					locHard	= list_f.lines[i].words[4];
+					gridsize= list_f.lines[i].get_int(5);
+					charge	= list_f.lines[i].get_int(6);
+					program	= list_f.lines[i].words[7];
+					rd.init_FD(neut,cation,anion,gridsize,charge,mep,locHard,program,dens_tmp);
+				break;
+				case 3:
+					neut	= list_f.lines[i].words[1].c_str();
+					locHard	= list_f.lines[i].words[2];
+					gridsize= list_f.lines[i].get_int(3);
+					bgap	= list_f.lines[i].get_int(4);
+					cation	= list_f.lines[i].words[5].c_str();
+					program = list_f.lines[i].words[6];
+					double r_atom[3];
+					r_atom[0] = list_f.lines[i].get_double(7);
+					r_atom[1] = list_f.lines[i].get_double(8);
+					r_atom[2] = list_f.lines[i].get_double(9);
+					int sze   = list_f.lines[i].get_int(10);
+					rd.init_protein_RD(neut,locHard,gridsize,bgap,r_atom,sze,cation,mep,btm,program);
+				break;
+			}
+			RDs.emplace_back(rd); 
+		}
+	}		
 }
 /*************************************************************/
 void AutoPrimordia::calculate_rd_from_traj(){
