@@ -294,7 +294,7 @@ void primordia::init_FD(const char* file_neutro	,
 void primordia::init_protein_RD(const char* file_name	,
 								string locHardness		,
 								int gridN				,
-								int bandgap				,
+								double bandgap			,
 								double* ref_atom		,
 								int size				,
 								const char* _pdb		,
@@ -302,7 +302,6 @@ void primordia::init_protein_RD(const char* file_name	,
 								string bt				,
 								string Program			){
 	band		= bandgap;
-	int band2	= bandgap;
 	name = remove_extension(file_name);
 	string band_m = "Energy Weighted";
 	if ( bt == "BD") {
@@ -340,11 +339,12 @@ void primordia::init_protein_RD(const char* file_name	,
 		grd		= global_rd( molecule );
 		lrdCnd	= local_rd_cnd( molecule.atoms.size() );
 		grd.calculate_rd();
-	
+		
 		if ( bt == "EW"){
 			lrdCnd.energy_weighted_fukui_functions(molecule);
 		}else{
-			lrdCnd.calculate_frontier_orbitals(molecule,band);
+			unsigned int bandn = (molecule.MOnmb/100)*band;
+			lrdCnd.calculate_frontier_orbitals(molecule,bandn);
 		}
 		lrdCnd.calculate_fukui_potential(molecule);
 		lrdCnd.calculate_RD(grd);
@@ -376,8 +376,9 @@ void primordia::init_protein_RD(const char* file_name	,
 			HOMO = grid.calc_HOMO();
 			LUMO = grid.calc_LUMO();
 			if ( bt == "BD" ){
-				EAS  = grid.calc_band_EAS(bandgap);
-				NAS  = grid.calc_band_NAS(bandgap);
+				unsigned int bandn = (molecule.MOnmb/100)*bandgap;
+				EAS  = grid.calc_band_EAS(bandn);
+				NAS  = grid.calc_band_NAS(bandn);
 			}else if ( bt == "EW" ){
 				EAS = grid.calc_EBLC_EAS();
 				NAS = grid.calc_EBLC_NAS();

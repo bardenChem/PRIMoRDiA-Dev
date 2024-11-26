@@ -535,7 +535,6 @@ Icube gridgen::calc_band_EAS(int bandn){
 		}
 	}
 	temp = temp/cnt;
-	//cout << "used " << cnt << " MO" << endl;
 	return temp;
 }
 /***********************************************************************/
@@ -557,10 +556,11 @@ Icube gridgen::calc_band_NAS(int bandn){
 Icube gridgen::calc_EBLC_EAS(){
 	Icube temp = density;
 	double coefficient = 0.0;
+	double pre_coeff   = exp( -abs(energy_crit/2) );
 	temp 	= temp*0.0;
 	for ( int i=0;i<=molecule.homoN;i++){
-		coefficient = exp(-abs(molecule.orb_energies[i]-molecule.homo_energy ) );
-		if ( coefficient > 0.36 ){
+		coefficient = exp( -abs( (molecule.orb_energies[i]-molecule.homo_energy)/2 ) );
+		if ( coefficient > pre_coeff ){
 			this->calculate_orb(i,false);
 			temp = temp + density.SQ()*coefficient;
 		}
@@ -571,10 +571,11 @@ Icube gridgen::calc_EBLC_EAS(){
 Icube gridgen::calc_EBLC_NAS( ){
 	Icube temp = density;
 	double coefficient = 0.0;
+	double pre_coeff   = exp( -abs(energy_crit/2) );
 	temp = temp*0.0;
 	for ( int i=molecule.lumoN;i<=molecule.orb_energies.size();i++){
-		coefficient = exp(-abs(molecule.orb_energies[i]-molecule.lumo_energy ) );
-		if ( coefficient > 0.36 ){
+		coefficient = exp(-abs( (molecule.orb_energies[i]-molecule.lumo_energy)/2 ) );
+		if ( coefficient > pre_coeff ){
 			this->calculate_orb(i,false);
 			temp = temp + density.SQ()*coefficient;
 			//cnt++;

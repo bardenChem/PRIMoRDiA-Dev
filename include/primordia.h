@@ -49,7 +49,7 @@ class primordia {
 	public:
 		//member varibles
 		std::string name;
-		unsigned int band; 
+		double band; 
 		Imolecule mol_info;
 		global_rd grd;
 		local_rd lrdVol;
@@ -68,7 +68,7 @@ class primordia {
 		friend primordia operator-(const primordia& pr_lhs,const primordia& pr_rhs);
 		void init_FOA(const char* file_neutro,int gridN,std::string loc_hard,bool mep, std::string Program,double den);
 		void init_FD(const char* file_neutro,const char* file_cation,const char* file_anion, int grdN, int charge,bool mep,std::string loc_hard, std::string Program,double den);
-		void init_protein_RD(const char* file_neutro,std::string locHardness,int grdN,int bandgap,double* ref_atom,int size,const char* _pdb, bool mep , std::string bt, std::string Program);
+		void init_protein_RD(const char* file_neutro,std::string locHardness,int grdN, double bandgap,double* ref_atom,int size,const char* _pdb, bool mep , std::string bt, std::string Program);
 		void init_QS_KA(Imolecule& mol, int gridN);
 		void init_QS_FD( Imolecule& mol1, Imolecule& mol2, Imolecule& mol3, int charge ,int gridN);
 };

@@ -37,6 +37,7 @@ extern bool dos;
 extern bool extra_RD;
 extern bool pymol_script;
 extern double energy_crit; 
+extern unsigned int norm_factor;
 extern bool M_R;
 extern bool comp_H;
 

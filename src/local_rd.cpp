@@ -235,8 +235,8 @@ void local_rd::calculate_fukui_Band(const Icube& homo_b, const Icube& lumo_b){
 	lrds[5] = homo_b;
 	lrds[6] = lumo_b;
 	lrds[20] = (homo_b+lumo_b)/2.0;
-	lrds[5].normalize(5);
-	lrds[6].normalize(5);
+	lrds[5].normalize(norm_factor);
+	lrds[6].normalize(norm_factor);
 	lrds[7] = (lrds[5]+lrds[6])/2.0;
 	lrds[8] = lrds[6]-lrds[5];
 }

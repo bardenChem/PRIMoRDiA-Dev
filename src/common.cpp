@@ -32,12 +32,13 @@
 using std::string;
 namespace fs = std::experimental::filesystem;
 
-bool dos			= false;
-bool extra_RD		= false;
-bool pymol_script	= false;
-double energy_crit	= 1;
-bool M_R			= false;
-bool comp_H			= false;
+bool dos					= false;
+bool extra_RD				= false;
+bool pymol_script			= false;
+double energy_crit			= 1;
+unsigned int norm_factor 	= 5;
+bool M_R					= false;
+bool comp_H					= false;
 /*********************************************************************************/
 unsigned int NP		= omp_get_max_threads();
 Itimer chronometer;
@@ -189,7 +190,7 @@ string remove_extension(const char* file_name){
 			std::cout << point << std::endl;
 		}
 	}
-	
+	return file_name_string;
 }
 /*********************************************************************************/
 string change_extension(const char* file_name,string new_ext){

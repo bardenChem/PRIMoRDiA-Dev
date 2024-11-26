@@ -72,12 +72,13 @@ AutoPrimordia::AutoPrimordia(const char* file_list):
 				if	( list_f.lines[i].words[j] == "eband" ){
 					energy_crit = list_f.lines[i].get_int(j+1);
 				}
-				else if	( list_f.lines[i].words[j] == "dos" )		dos			= true;
-				else if	( list_f.lines[i].words[j] == "extrard" )	extra_RD	= true;
-				else if	( list_f.lines[i].words[j] == "Rscript" )	M_R			= true;
-				else if	( list_f.lines[i].words[j] == "composite" )	comp_H		= true;
-				else if	( list_f.lines[i].words[j] == "pymols" )	pymol_script= true;
-				else if ( list_f.lines[i].words[j] == "npgrid" )    NP     = list_f.lines[i].get_int(j+1);
+				else if ( list_f.lines[i].words[j] == "normfactor" ) norm_factor = list_f.lines[i].get_int(j+1);
+				else if	( list_f.lines[i].words[j] == "dos" )		 dos		 = true;
+				else if	( list_f.lines[i].words[j] == "extrard" )	 extra_RD	 = true;
+				else if	( list_f.lines[i].words[j] == "Rscript" )	 M_R		 = true;
+				else if	( list_f.lines[i].words[j] == "composite" )	 comp_H		 = true;
+				else if	( list_f.lines[i].words[j] == "pymols" )	 pymol_script= true;
+				else if ( list_f.lines[i].words[j] == "npgrid" )     NP     	 = list_f.lines[i].get_int(j+1);
 			}
 		}
 	}
@@ -99,7 +100,6 @@ void AutoPrimordia::init(){
 		this->reaction_analysis();
 	}
 	this->write_global();
-	
 }
 /*************************************************************/
 void AutoPrimordia::calculate_rd(){
@@ -114,7 +114,7 @@ void AutoPrimordia::calculate_rd(){
 	string locHard 		= ".";
 	string btm			= "BD";
 	int gridsize		= 0;
-	int bgap			= 0;
+	double bgap			= 0;
 	bool mep			= false;
 	int charge			= 0;
 	double dens_tmp		= 0.0;

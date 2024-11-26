@@ -267,8 +267,6 @@ void local_rd_cnd::calculate_frontier_orbitals( Imolecule& molecule, unsigned ba
 		value_l = 0;
 	}
 	if ( band >= 1 ){
-		double norm_factor = 1.0; 
-		norm_factor = norm_factor*(molecule.num_of_atoms/200);
 		lrds[0] = norm_dvec(lrds[0],norm_factor);
 		lrds[1] = norm_dvec(lrds[1],norm_factor);
 	}else{
@@ -294,7 +292,7 @@ local_rd_cnd::~local_rd_cnd(){}
 /***********************************************************************************/
 void local_rd_cnd::energy_weighted_fukui_functions( const Imolecule& molecule ){
 	name =	molecule.name;
-	double pre_coef		= exp( -abs(energy_crit) );
+	double pre_coef		= exp( -abs(energy_crit/2) );
 	double coefficient	= 0.0;
 	int mo_count 		= 0;
 	double value_h		= 0.0;
@@ -325,7 +323,7 @@ void local_rd_cnd::energy_weighted_fukui_functions( const Imolecule& molecule ){
 		
 		//calculating the occupied molecular orbitals
 		for( unsigned i=0; i<=homon; i++ ){
-			coefficient = exp(-abs( molecule.orb_energies[i]-molecule.homo_energy ) );
+			coefficient = exp(-abs( (molecule.orb_energies[i]-molecule.homo_energy)/2 ) );
 			if ( coefficient > pre_coef ){ 
 				mo_count++;
 				for( unsigned mu=init_orb; mu<n_aorbs; mu++){
@@ -349,7 +347,7 @@ void local_rd_cnd::energy_weighted_fukui_functions( const Imolecule& molecule ){
 		mo_count = 0;
 		//calculating the virtual molecular orbitals
 		for( unsigned i=lumon;i<molecule.orb_energies.size();i++){
-			coefficient = exp(-abs( molecule.orb_energies[i]-molecule.lumo_energy ) );
+			coefficient = exp( -abs( (molecule.orb_energies[i]-molecule.lumo_energy)/2 ) );
 			if ( coefficient > pre_coef ){ 
 				mo_count++;
 				for(unsigned mu=init_orb;mu<n_aorbs;mu++){
@@ -374,7 +372,7 @@ void local_rd_cnd::energy_weighted_fukui_functions( const Imolecule& molecule ){
 		if ( molecule.betad ){
 			mo_count = 0;
 			for( int i=0;i<=homon;i++){
-				coefficient = exp(-abs(molecule.orb_energies_beta[i]-molecule.homo_energy ) );
+				coefficient = exp(-abs( (molecule.orb_energies_beta[i]-molecule.homo_energy)/2 ) );
 				if ( coefficient > pre_coef ){ 
 					mo_count++;
 					for(int mu=init_orb;mu<n_aorbs;mu++){
@@ -397,7 +395,7 @@ void local_rd_cnd::energy_weighted_fukui_functions( const Imolecule& molecule ){
 			
 			mo_count = 0;
 			for( int i=lumon;i<molecule.orb_energies.size();i++){
-				coefficient = exp(-abs(molecule.orb_energies_beta[i]-molecule.lumo_energy ) );
+				coefficient = exp(-abs( (molecule.orb_energies_beta[i]-molecule.lumo_energy)/2 ) );
 				if ( coefficient >  pre_coef  ){ 
 					mo_count++;
 					for(int mu=init_orb;mu<n_aorbs;mu++){
@@ -425,8 +423,8 @@ void local_rd_cnd::energy_weighted_fukui_functions( const Imolecule& molecule ){
 		value_h = 0;
 		value_l = 0;
 	}
-	lrds[0] = norm_dvec(lrds[0],3);
-	lrds[1] = norm_dvec(lrds[1],3);
+	lrds[0] = norm_dvec(lrds[0],norm_factor);
+	lrds[1] = norm_dvec(lrds[1],norm_factor);
 	for( unsigned i=0; i<lrds[0].size(); i++ ){
 		lrds[3][i] = lrds[1][i] - lrds[0][i];
 		lrds[2][i] = (lrds[1][i] + lrds[0][i])/2;
