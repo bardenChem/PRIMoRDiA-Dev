@@ -159,21 +159,24 @@ string remove_extension(const char* file_name){
 	int point = 0;
 	char dot = '.';
 	
-	if ( file_name_string.substr( file_name_string.size()-11,file_name_string.size() )  == ".aux.tar.gz" ){
-		try {
-			return file_name_string.substr(0,file_name_string.size()-11);	
-		}catch( const std::out_of_range ){
-			std::cout << "problem 2" << std::endl;
-			std::cout << file_name_string.size() << std::endl;
-			std::cout << file_name_string << std::endl;
-		}
-	}else if ( file_name_string.substr( file_name_string.size()-7,file_name_string.size() )  == ".aux.gz" ) {
-		try {
-			return file_name_string.substr(0,file_name_string.size()-7);
-		}catch( const std::out_of_range ){
-			std::cout << "problem 2" << std::endl;
-			std::cout << file_name_string.size() << std::endl;
-			std::cout << file_name_string << std::endl;
+	
+	if ( file_name_string.size() > 11 ){
+		if ( file_name_string.substr( file_name_string.size()-7,file_name_string.size() )  == ".aux.gz" ) {
+			try {
+				return file_name_string.substr(0,file_name_string.size()-7);
+			}catch( const std::out_of_range ){
+				std::cout << "problem 2" << std::endl;
+				std::cout << file_name_string.size() << std::endl;
+				std::cout << file_name_string << std::endl;
+			}	
+		}else if ( file_name_string.substr( file_name_string.size()-11,file_name_string.size() )  == ".aux.tar.gz" ){
+			try {
+				return file_name_string.substr(0,file_name_string.size()-11);	
+			}catch( const std::out_of_range ){
+				std::cout << "problem 2" << std::endl;
+				std::cout << file_name_string.size() << std::endl;
+				std::cout << file_name_string << std::endl;
+			}
 		}
 	}else{
 		for(unsigned int i = 0;i<file_name_string.size();i++){

@@ -343,7 +343,8 @@ void primordia::init_protein_RD(const char* file_name	,
 		if ( bt == "EW"){
 			lrdCnd.energy_weighted_fukui_functions(molecule);
 		}else{
-			unsigned int bandn = (molecule.MOnmb/100)*band;
+			double band_temp   = (molecule.MOnmb/100.0000)*band;
+			unsigned int bandn = std::round(band_temp);
 			lrdCnd.calculate_frontier_orbitals(molecule,bandn);
 		}
 		lrdCnd.calculate_fukui_potential(molecule);
