@@ -67,7 +67,9 @@ residue_lrd& residue_lrd::operator=(residue_lrd&& rhs) noexcept{
 residue_lrd::~residue_lrd(){}
 //===================================================
 /****************************************************/
-protein_lrd::protein_lrd(){}
+protein_lrd::protein_lrd(){
+	file_name = "nonamed";
+}
 /****************************************************/
 protein_lrd::protein_lrd(std::vector<residue_lrd> res_rd):
 	residues_rd(res_rd)									{
@@ -112,6 +114,7 @@ protein_lrd::protein_lrd(std::vector<residue_lrd> res_rd):
 
 /****************************************************/
 protein_lrd::protein_lrd(const protein_lrd& rhs):
+	file_name(rhs.file_name)                    ,
 	residues_rd(rhs.residues_rd)				,
 	labels(rhs.labels)							,
 	protein_avg_avg(rhs.protein_avg_avg)		,
@@ -123,6 +126,7 @@ protein_lrd::protein_lrd(const protein_lrd& rhs):
 }
 /****************************************************/
 protein_lrd::protein_lrd(protein_lrd&& rhs) noexcept:
+	file_name( move(rhs.file_name) )                ,
 	residues_rd( move(rhs.residues_rd) )			,
 	labels( move(rhs.labels) )						,
 	protein_avg_avg( move(rhs.protein_avg_avg) )	,
@@ -134,6 +138,7 @@ protein_lrd::protein_lrd(protein_lrd&& rhs) noexcept:
 /****************************************************/
 protein_lrd& protein_lrd::operator=(const protein_lrd& rhs){
 	if (this!=&rhs){
+		file_name       = rhs.file_name;
 		residues_rd		= rhs.residues_rd;
 		labels			= rhs.labels;
 		protein_avg_avg	= rhs.protein_avg_avg;
@@ -147,6 +152,7 @@ protein_lrd& protein_lrd::operator=(const protein_lrd& rhs){
 /****************************************************/
 protein_lrd& protein_lrd::operator=(protein_lrd&& rhs) noexcept{
 	if (this!=&rhs){
+		file_name       = move(rhs.file_name);
 		residues_rd		= move(rhs.residues_rd);
 		labels			= move(rhs.labels);
 		protein_avg_avg	= move(rhs.protein_avg_avg);

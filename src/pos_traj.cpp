@@ -197,6 +197,7 @@ void traj_rd::init_from_folder(){
 		protein_lrd Frame;
 		if ( IF_file( fnames[i].c_str() ) ){
 			std::ifstream fr_fle( fnames[i].c_str() );
+			Frame.file_name = fnames[i];
 			int line = 0;
 			while( getline(fr_fle,Line) ){
 				if ( line > 0 ){
@@ -220,9 +221,9 @@ void traj_rd::init_from_folder(){
 				line++;
 			}
 			fr_fle.close();
-		if ( Frame.residues_rd.size() > 2 )
+		if ( Frame.residues_rd.size() >= 1 )
 			frames.push_back(Frame);
-		}
+		}else { std::cout<< "file not open!"<<std::endl; }
 	}
 }
 /***************************************************************************/
@@ -341,13 +342,14 @@ void traj_rd::write_residues_reports(){
 		pro_lh << i << " ";
 	}
 	pro_lh << "\n";
-	
-	for( unsigned i=0; i<frames[0].residues_rd.size();i++ ){
+	int cnt = 0;
+	for( unsigned i=0; i<frames[cnt].residues_rd.size();i++ ){
 		pro_lh << frames[0].labels[i] << " ";
 		for( unsigned j=0; j<frames.size(); j++){
 			pro_lh << frames[j].residues_rd[i].rd_sum[4] << " ";
 		}
 		pro_lh << "\n";
+		cnt++;
 	}
 	pro_lh.close();
 	//------------------------------------------
@@ -358,13 +360,14 @@ void traj_rd::write_residues_reports(){
 		pro_net << i << " ";
 	}
 	pro_net << "\n";
-	
-	for( unsigned i=0; i<frames[0].residues_rd.size();i++ ){
+	cnt =0;
+	for( unsigned i=0; i<frames[cnt].residues_rd.size();i++ ){
 		pro_net << frames[0].labels[i] << " ";
 		for( unsigned j=0; j<frames.size(); j++){
 			pro_net << frames[j].residues_rd[i].rd_sum[3] << " ";
 		}
 		pro_net << "\n";
+		cnt++;
 	}
 	pro_net.close();
 	

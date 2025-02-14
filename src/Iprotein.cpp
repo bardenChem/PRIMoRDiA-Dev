@@ -9,6 +9,8 @@
 #include <fstream>
 #include <cstring>
 #include <map>
+#include <cmath>
+
 // include statements from PRIMORDiA-libs
 #include "../include/common.h"
 #include "../include/Iprotein.h"
@@ -51,6 +53,9 @@ Iresidue::Iresidue(const Iresidue& res)		:
 	atom_s(res.atom_s)						,
 	atoms_index(res.atoms_index)			,
 	side_chain_atoms(res.side_chain_atoms)	,
+	xcoord(res.xcoord)                      ,
+	ycoord(res.ycoord)                      ,
+	zcoord(res.zcoord)                      ,
 	back_bone_atoms(res.back_bone_atoms)	{
 }
 /*****************************************************/
@@ -62,6 +67,9 @@ Iresidue::Iresidue(Iresidue&& res) noexcept		:
 	molar_vol(res.molar_vol)					,
 	atom_s(res.atom_s)							,
 	atoms_index( move(res.atoms_index) )		,
+	xcoord( move(res.xcoord) )                  ,
+	ycoord( move(res.ycoord) )                  ,
+	zcoord( move(res.zcoord) )                  ,
 	side_chain_atoms( move(res.side_chain_atoms) ),
 	back_bone_atoms( move(res.back_bone_atoms) ){
 	
@@ -76,6 +84,9 @@ Iresidue& Iresidue::operator=(const Iresidue& res){
 		molar_vol		= res.molar_vol;
 		atom_s			= res.atom_s;
 		atoms_index		= res.atoms_index;
+		xcoord			= res.xcoord;
+		ycoord			= res.ycoord;
+		zcoord			= res.zcoord;
 		side_chain_atoms= res.side_chain_atoms;
 		back_bone_atoms	= res.back_bone_atoms;
 	}
@@ -90,11 +101,35 @@ Iresidue& Iresidue::operator=(Iresidue&& res) noexcept{
 		atom_type		= move(res.atom_type);   
 		molar_vol		= res.molar_vol;
 		atom_s			= res.atom_s;                   
-		atoms_index		= move(res.atoms_index);        
+		atoms_index		= move(res.atoms_index);       
+		xcoord			= move(res.xcoord);
+		ycoord			= move(res.ycoord);
+		zcoord			= move(res.zcoord);
 		side_chain_atoms= move(res.side_chain_atoms);
 		back_bone_atoms = move(res.back_bone_atoms);
 	}
 	return *this;
+}
+/******************************************************/
+double Iresidue::calculate_distance(const Iresidue& res){
+	double distance= 0.0;
+	double smallest_d = (xcoord[0] - res.xcoord[0])*(xcoord[0] - res.xcoord[0]);
+	smallest_d+= (ycoord[0] - res.ycoord[0])*(ycoord[0] - res.ycoord[0]);
+	smallest_d+= (zcoord[0] - res.zcoord[0])*(zcoord[0] - res.zcoord[0]);
+	smallest_d = sqrt(smallest_d);
+	
+	for(unsigned i=0;i<xcoord.size();i++ ){
+		for(unsigned j=0;j<res.xcoord.size();j++ ){
+			distance = (xcoord[i] - res.xcoord[j])*(xcoord[i] - res.xcoord[j]);
+			distance += (ycoord[i] - res.ycoord[j])*(ycoord[i] - res.ycoord[j]);
+			distance += (zcoord[i] - res.zcoord[j])*(zcoord[i] - res.zcoord[j]);
+			distance = sqrt(distance);			
+			if ( distance < smallest_d ){
+				smallest_d = distance;
+			}
+		}
+	}	
+	return smallest_d;
 }
 /*****************************************************/
 Iresidue::~Iresidue(){}
@@ -123,6 +158,9 @@ Iprotein::Iprotein (const char* pdb_name):
 	vector<string> atomtype;
 	vector<string> element;
 	vector<string> resname;
+	double xcoord;
+	double ycoord;
+	double zcoord;
 	
 	string old_resi 	= "0";
 	int cnt 			= 0;
@@ -140,11 +178,11 @@ Iprotein::Iprotein (const char* pdb_name):
 				resname.emplace_back( pdb_line,17,3 );
 				resn.emplace_back( pdb_line,23,3  );
 				string temp2d_a(pdb_line,31,6);
-				xcoord.push_back( stod(temp2d_a) );
+				xcoord = stod(temp2d_a);
 				string temp2d_b(pdb_line,39,6);
-				ycoord.push_back( stod(temp2d_b) ) ;
+				ycoord = stod(temp2d_b);
 				string temp2d_c(pdb_line,47,6);
-				zcoord.push_back( stod(temp2d_c) ) ;
+				zcoord = stod(temp2d_c);
 				if (  (unsigned)strlen(pdb_line) >85 ) {
 					string word2(pdb_line,85,2);
 					if ( word2 == "P1" ) 
@@ -157,7 +195,7 @@ Iprotein::Iprotein (const char* pdb_name):
 				if ( resn[cnt] != old_resi ){
 					Iresidue res;
 					res.type = resname[cnt];
-					if ( res.type == "LIG" || res.type == "MOL" ) { 
+					if ( res.type == "LIG" || res.type == "MOL" || res.type == "UNK"  ) { 
 						ligand = true;
 						res.ligand = true;
 						lig_num = num_of_res;
@@ -170,6 +208,9 @@ Iprotein::Iprotein (const char* pdb_name):
 				residues[num_of_res-1].atom_type.push_back(atomtype[cnt]);
 				residues[num_of_res-1].atoms_index.push_back(cnt);
 				residues[num_of_res-1].atom_s++;
+				residues[num_of_res-1].xcoord.push_back(xcoord);
+				residues[num_of_res-1].ycoord.push_back(ycoord);
+				residues[num_of_res-1].zcoord.push_back(zcoord);
 				cnt++;
 			}
 		}
@@ -186,9 +227,6 @@ Iprotein::Iprotein(const Iprotein& prot_rhs):
 	title(prot_rhs.title)					,
 	ligand(prot_rhs.ligand)					,
 	residues(prot_rhs.residues)				,
-	xcoord(prot_rhs.xcoord)					,
-	ycoord(prot_rhs.ycoord)					,
-	zcoord(prot_rhs.zcoord)					,
 	b_factor(prot_rhs.b_factor)				,
 	p1(prot_rhs.p1)							,
 	p2(prot_rhs.p2)							{
@@ -201,9 +239,6 @@ Iprotein::Iprotein(Iprotein&& prot_rhs) noexcept:
 	residues( move(prot_rhs.residues)  )		,
 	remark( move(prot_rhs.remark) )				,
 	title(	move(prot_rhs.title) )				,
-	xcoord( move(prot_rhs.xcoord) )				,
-	ycoord( move(prot_rhs.ycoord) )				,
-	zcoord( move(prot_rhs.zcoord) )				,
 	b_factor( move(prot_rhs.b_factor) )			,
 	p1( move(prot_rhs.p1) )						,
 	p2( move(prot_rhs.p2) )						{
@@ -217,9 +252,6 @@ Iprotein& Iprotein::operator=(const Iprotein& prot_rhs){
 		residues	= prot_rhs.residues;
 		remark		= prot_rhs.remark;
 		title		= prot_rhs.title;
-		xcoord		= prot_rhs.xcoord;
-		ycoord		= prot_rhs.ycoord;
-		zcoord		= prot_rhs.zcoord;
 		b_factor	= prot_rhs.b_factor;
 		p1			= prot_rhs.p1;
 		p2			= prot_rhs.p2;
@@ -234,9 +266,6 @@ Iprotein& Iprotein::operator=(Iprotein&& prot_rhs) noexcept{
 		residues	= move(prot_rhs.residues);
 		remark		= move(prot_rhs.remark);
 		title		= move(prot_rhs.title);
-		xcoord		= move(prot_rhs.xcoord);
-		ycoord		= move(prot_rhs.ycoord);
-		zcoord		= move(prot_rhs.zcoord);
 		b_factor	= move(prot_rhs.b_factor);
 		p1 			= move(prot_rhs.p1);
 		p2 			= move(prot_rhs.p2);
@@ -256,6 +285,15 @@ void Iprotein::print(){
 			cout << residues[i].atom_type[j] << endl;
 		}
 	}
+}
+/*****************************************************/
+vector<int> Iprotein::distance_from_lig(double _radius){
+	vector<int> list_r;
+	for ( unsigned int i=0;i<residues.size();i++){
+		double distance = residues[i].calculate_distance(residues[lig_num]);
+		if (distance <= _radius) list_r.push_back(i);	
+	}
+	return list_r;
 }
 /*****************************************************/
 Iprotein::~Iprotein(){}
@@ -337,11 +375,11 @@ void pdb::write_models(string path){
 							<< " "
 							<< std::right << std::setw(4) << (i+1)
 							<< std::setw(5) << " "
-							<< std::setw(7) << models[k].xcoord[cont] 
+							<< std::setw(7) << models[k].residues[i].xcoord[j] 
 							<< " "
-							<< std::setw(7) << models[k].ycoord[cont] 
+							<< std::setw(7) << models[k].residues[i].ycoord[j] 
 							<< " "
-							<< std::setw(7) << models[k].zcoord[cont] 
+							<< std::setw(7) << models[k].residues[i].zcoord[j] 
 							<< " "
 							<< std::setw(5)  << "1.00"
 							<< " "
@@ -378,11 +416,11 @@ void pdb::write_pdb(string fname){
 							<< " "
 							<< std::right << std::setw(4) << (i+1)
 							<< std::setw(5) << " "
-							<< std::setw(7) << models[k].xcoord[cont] 
+							<< std::setw(7) << models[k].residues[i].xcoord[j] 
 							<< " "
-							<< std::setw(7) << models[k].ycoord[cont] 
+							<< std::setw(7) << models[k].residues[i].ycoord[j]
 							<< " "
-							<< std::setw(7) << models[k].zcoord[cont] 
+							<< std::setw(7) << models[k].residues[i].zcoord[j]
 							<< " "
 							<< std::setw(5)  << "1.00"
 							<< " "

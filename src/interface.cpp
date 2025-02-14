@@ -24,6 +24,7 @@
 #include <ctime>
 #include <experimental/filesystem>
 #include <iomanip>
+#include <set>
 
 #include "../include/log_class.h"
 #include "../include/common.h"
@@ -40,6 +41,7 @@
 #include "../include/interface.h"
 #include "../include/pos_traj.h"
 #include "../include/scripts.h"
+#include "../include/Iprotein.h"
 
 /*********************************************************/
 using std::unique_ptr;
@@ -139,6 +141,40 @@ void interface::run(){
 			scripts res_analy( from_f.c_str(), "residuos_analysis" );
 			res_analy.write_r_residuos_barplot();
 		}
+	}
+	else if ( runtyp == "-res_4_dist" ){
+		double radius = stod(m_argv[3]);
+		
+		fs::path c_path = fs::current_path();
+		std::vector<string> fnames; 
+		if ( m_argv[2] !="no_path" ){
+			c_path = m_argv[2];
+		}
+		for ( const auto & entry : fs::directory_iterator(c_path) ){
+			string tmp_name = entry.path();
+			if ( check_file_ext( ".pdb",tmp_name.c_str() ) ){
+				tmp_name = entry.path().stem();
+				if ( tmp_name.compare(0, 7, "complex") == 0 ){	
+					fnames.push_back( entry.path() );				
+				}
+			}
+		}
+		std::set<int> set_res;
+		for (unsigned i=0; i<fnames.size(); i++){
+			Iprotein prot(fnames[i].c_str());
+			vector<int> res = prot.distance_from_lig(radius);
+			set_res.insert(res.begin(), res.end());
+		}
+		vector<int> rs_l( set_res.begin(),set_res.end() );
+		
+		traj_rd traj( rs_l, m_argv[2].c_str() );
+		traj.init_from_folder();
+		traj.calculate_res_stats();
+		traj.write_residues_reports();
+		string from_f = "from_folder";
+		scripts res_analy( from_f.c_str(), "residuos_analysis" );
+		res_analy.write_r_residuos_barplot();
+
 	}
 	else {
 		cout << "No valid run option!" << endl;

@@ -398,6 +398,7 @@ void orca_files::get_overlap(int ov_in,int ov_fin){
 	unsigned int aonum = molecule.get_ao_number();
 	
 	Ibuffer Buffer(name_f,ov_in,ov_fin);
+	std::cout<< ov_fin << std::endl; 
 	
 	vector<double> overlap_full(aonum*aonum);
 	for( unsigned i=1; i<Buffer.nLines; i++ ){
@@ -409,7 +410,7 @@ void orca_files::get_overlap(int ov_in,int ov_fin){
 		else if ( Buffer.lines[i].line_len > 1 && line_indicator == 1 ){
 			col_c = col_n;
 			for ( unsigned j=0; j<Buffer.lines[i].line_len-1; j++){
-				overlap_full[col_c*aonum + row_n] = Buffer.lines[i].pop_double(1);
+				overlap_full[col_c*aonum + row_n] = Buffer.lines[i].get_double(j);
 				col_c++;
 			}
 			row_n++;

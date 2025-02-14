@@ -187,6 +187,11 @@ void gaussian_files::parse_fchk(){
 	m_log->input_message(int(prim_b_f));
 	m_log->input_message(int(shell_m_i));
 	m_log->input_message(int(shell_m_f));
+	m_log->input_message(int(chgs_i));
+	m_log->input_message(int(chgs_f));
+	m_log->input_message(int(alpha_c_i));
+	m_log->input_message(int(alpha_c_f));
+	
 	
 	
 	for( unsigned i=0; i<Buffer.lines.size(); i++){
@@ -259,7 +264,7 @@ void gaussian_files::parse_fchk(){
 		//		molecule.m_dens.push_back( Buffer.lines[i].pop_double(0) );
 		//	}
 		//}
-		else if( i>chgs_i && i<chgs_f ){
+		else if( chgs_i>0 && i>chgs_i && i<chgs_f ){
 			for(j=0;j<Buffer.lines[i].line_len;j++){
 				molecule.atoms[k++].charge = Buffer.lines[i].pop_double(0);
 			}
@@ -405,10 +410,22 @@ void gaussian_files::parse_fchk(){
 	}else{
 		for(int h=0;h<molecule.num_of_electrons/2;h++){ molecule.occupied[h] = 2; }
 	}				
-	this->get_overlap_m();
+	
 	for ( unsigned i=0; i<molecule.orb_energies.size(); i++){ molecule.orb_energies[i] *= 27.2114; }
 	for ( unsigned i=0; i<molecule.orb_energies_beta.size(); i++){ molecule.orb_energies_beta[i] *= 27.2114; }
+	
+	m_log->input_message("MO coeff number: \n\t");
+	m_log->input_message( int(molecule.coeff_MO.size()) );
+	m_log->input_message("Number of orbitals energy read \n\t");
+	m_log->input_message( int(molecule.orb_energies.size() ) );
+	
+	
+	this->get_overlap_m();
+	
 	molecule.update();
+	
+	
+	
 	m_log->input_message("HOMO number: \n\t");
 	m_log->input_message(molecule.homoN);
 	m_log->input_message("HOMO energy: \n\t");
@@ -429,7 +446,8 @@ void gaussian_files::parse_fchk(){
 void gaussian_files::get_overlap_m(){
 	m_log->input_message("Starting to store the overlap 1e intragrals from the GAUSSIAN LOG file!\n");
 	string log_name = change_extension(name_f,".log");
-	
+	std::cout << log_name << std::endl;
+	std::cout << name_f << std::endl;
 	if ( IF_file(log_name.c_str() ) ){
 		if ( !check_file_ext(".log",log_name.c_str() ) ) {
 			cout << "Warning! The file has wrong etension name!" << endl;
@@ -460,12 +478,16 @@ void gaussian_files::get_overlap_m(){
 			}
 			i++;
 		}	
+		buf.close();
 		
 		Ibuffer Buffer(log_name.c_str(),over_in,over_fin);		
 	
 		int col_n = 0;
 		int row_n = 0;
 		int col_c = 0;
+		
+		m_log->input_message(int(over_in));
+		m_log->input_message(int(over_fin));
 	
 		for(int i=0;i<Buffer.nLines;i++){
 			if ( Buffer.lines[i].words.size() == 1 )

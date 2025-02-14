@@ -58,6 +58,7 @@ class residue_lrd{
 class protein_lrd{
 	public:
 		//member variables
+		std::string file_name;
 		std::vector<residue_lrd> residues_rd;
 		std::vector<double>	protein_sum_avg;
 		std::vector<double>	protein_avg_avg;

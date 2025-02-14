@@ -27,12 +27,16 @@ class Iresidue{
 		std::vector<int> atoms_index;
 		std::vector<int> side_chain_atoms;
 		std::vector<int> back_bone_atoms;
+		std::vector<double> xcoord;
+		std::vector<double> ycoord;
+		std::vector<double> zcoord;
 		//--------------------------------------------------------------------
 		Iresidue();
 		Iresidue(const Iresidue& res);
 		Iresidue& operator=(const Iresidue& res);
 		Iresidue(Iresidue&& res) noexcept;
 		Iresidue& operator=(Iresidue&& res) noexcept;
+		double calculate_distance(const Iresidue& res);
 		~Iresidue();
 		
 };
@@ -54,10 +58,7 @@ class Iprotein{
 		bool ligand;
 		std::vector<int> p1;
 		std::vector<int> p2;
-		std::vector<Iresidue> residues;
-		std::vector<double> xcoord;
-		std::vector<double> ycoord;
-		std::vector<double> zcoord;
+		std::vector<Iresidue> residues;		
 		std::vector<double> b_factor;
 		//---------------------------------------------------------
 		Iprotein();
@@ -69,6 +70,7 @@ class Iprotein{
 		//---------------------------------------------------------
 		void print();
 		void load_b_column(std::vector<double>& b_fact);
+		std::vector<int> distance_from_lig(double _radius);
 		~Iprotein();
 	
 };

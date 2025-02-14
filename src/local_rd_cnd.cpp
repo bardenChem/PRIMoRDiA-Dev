@@ -171,7 +171,7 @@ void local_rd_cnd::calculate_frontier_orbitals( Imolecule& molecule, unsigned ba
 	double value_l			= 0.0;
 	unsigned init_orb		= 0;
 	unsigned n_aorbs		= 0;
-	unsigned ao 			= molecule.get_ao_number();
+	unsigned ao 			= molecule.MOnmb;
 	unsigned homon 			= abs(molecule.homoN);
 	unsigned lumon 			= abs(molecule.lumoN);
 	unsigned cnt 			= 0;
@@ -186,7 +186,7 @@ void local_rd_cnd::calculate_frontier_orbitals( Imolecule& molecule, unsigned ba
 		n_aorbs		= 0;
 		if ( atom == 0 ) {
 			init_orb = 0;
-			n_aorbs  = molecule.atoms[0].orbitals.size();
+			n_aorbs  = molecule.atoms[atom].orbitals.size();
 		}else{
 			for( unsigned j=0; j<atom; j++ ){
 				init_orb += molecule.atoms[j].norb;
