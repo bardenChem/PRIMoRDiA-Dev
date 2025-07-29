@@ -96,32 +96,100 @@ void orca_files::parse_out(){
 	
 	Ibuffer Buffer(name_f,true) ;
 	for ( unsigned i=0; i<Buffer.nLines; i++){
-		if		( Buffer.lines[i].IF_line("CARTESIAN",0,"(ANGSTROEM)",2,3) ){ in_coords = i; }
-		else if ( Buffer.lines[i].IF_line("CARTESIAN",0,"(A.U.)",2,3) ){ fin_coords = i; }
+		if		( Buffer.lines[i].IF_line("CARTESIAN",0,"(ANGSTROEM)",2,3) ){ 
+			in_coords = i;
+			m_log->input_message("Start of the block containing the cartesian coordinates:");
+			m_log->input_message(int(i));
+		}
+		else if ( Buffer.lines[i].IF_line("CARTESIAN",0,"(A.U.)",2,3) ){ 
+			fin_coords = i;
+			m_log->input_message("End of the block containing the cartesian coordinates, line: ");
+			m_log->input_message(int(i));
+		}
 		else if ( Buffer.lines[i].IF_line("Number",0,"Electrons",2,6) ){
 			molecule.num_of_electrons = Buffer.lines[i].get_int(5);
+			m_log->input_message("Reading the number of electrons, line: ");
+			m_log->input_message(int(i));
+			m_log->input_message("Number of electrons: ");
+			m_log->input_message(int(molecule.num_of_electrons));
 		}
 		else if ( Buffer.lines[i].IF_line("Total",0,"Energy",1,7) ){
 			molecule.energy_tot = Buffer.lines[i].get_double(5);
+			m_log->input_message("Reading the total electronic energy, line: ");
+			m_log->input_message(int(i));
+			m_log->input_message("\n");
+			m_log->input_message(double(molecule.energy_tot));
 		}
 		else if ( Buffer.lines[i].IF_line("Electronic",0,"Energy",1,7) ){
 			molecule.elec_energy = Buffer.lines[i].get_double(5);
+			m_log->input_message("Reading the total electronic energy:");
+			m_log->input_message(double(molecule.elec_energy));
 		}		
 		else if ( Buffer.lines[i].IF_line("Basis",1,"set",2,7) ){
 			basis_in.push_back(i);
+			m_log->input_message("Reading basis set information, start of the block, line: ");
+			m_log->input_message(int(i));
 		}
-		else if( Buffer.lines[i].IF_line("end;",0,1) ){
+		//else if ( Buffer.lines[i].IF_line("Auxiliary/J",1,"basis",2,8) ){
+			//basis_in.push_back(i);
+			//m_log->input_message("Reading auxiliary basis set information, start of the block, line: ");
+			//m_log->input_message(int(i));
+		//}			
+		else if( Buffer.lines[i].IF_line("end;",0,1) ){			
 			basis_fin.push_back(i);
+			m_log->input_message("Reading basis set information, end of the block, line: ");
+			m_log->input_message(int(i));
 		}
 		else if( Buffer.lines[i].IF_line("contracted",2,"basis",3,7) ){
 			aonum = Buffer.lines[i].get_int(6);
+			m_log->input_message("Number of basis functions/atomic orbitals: ");
+			m_log->input_message(int(aonum));
 		}
+		else if( Buffer.lines[i].IF_line("basis",2,"functions",3,6) ){
+			aonum = Buffer.lines[i].get_int(5);
+			m_log->input_message("Number of basis functions/atomic orbitals: ");
+			m_log->input_message(int(aonum));
+		}
+		else if ( Buffer.lines[i].IF_line("OVERLAP",0,"MATRIX",1,2) ){
+			ov_in = i;
+			m_log->input_message("Reading overlap matrix information, start of the block: ");
+			m_log->input_message(int(i));
+			m_log->input_message("\n");
+		}		
+		else if ( Buffer.lines[i].IF_line("Time",0,"sec",7,8) ){
+			if ( ov_fin == 0 ) {
+				ov_fin = i;			
+				m_log->input_message("Reading basis set information, end of the block: ");
+				m_log->input_message(int(i));
+				m_log->input_message("\n");
+			}
+		}
+		else if ( Buffer.lines[i].IF_line("INITIAL",0,"MOREAD",2,3) ){
+			if ( ov_fin == 0 ) {
+				ov_fin = i;
+				m_log->input_message("Reading overlap matrix information, end of the block: ");
+				m_log->input_message(int(i));
+				m_log->input_message("\n");
+			}
+		}		
+		else if ( Buffer.lines[i].IF_line("DFT",0,"GENERATION",2,3) ){
+			if ( ov_fin == 0 ) {
+				ov_fin = i;			
+				m_log->input_message("Reading basis set information, end of the block: ");
+				m_log->input_message(int(i));
+				m_log->input_message("\n");
+			}
+		}		
 		else if ( Buffer.lines[i].IF_line("ORBITAL",0,"ENERGIES",1,2) ) { 
 			orbs_in = i; 
+			m_log->input_message("Reading orbital energies information, start of the block, line: ");
+			m_log->input_message(int(i));
 		}
 		else if ( Buffer.lines[i].IF_line("UP",1,"ORBITALS",2,3) ) { 
 			if ( orbs_in ==  0 ) {
 				orbs_in = i;
+				m_log->input_message("Reading alpha orbital energies information, start of the block, line: ");
+				m_log->input_message(int(i));
 			}
 		}
 		else if ( Buffer.lines[i].IF_line("DOWN",1,"ORBITALS",2,3) ) { 
@@ -129,33 +197,47 @@ void orca_files::parse_out(){
 				orbs_fin = i;
 				orbs_in_b = i;
 				molecule.betad = true;
+				m_log->input_message("Reading alpha orbital energies information, end of the block, line: ");
+				m_log->input_message(int(i));
+				m_log->input_message("Reading beta orbital energies information, start of the block, line: ");
+				m_log->input_message(int(i));
 			}
 		}
-		else if ( Buffer.lines[i].IF_line("OVERLAP",0,"MATRIX",1,2) ){
-			ov_in = i;
-		}
-		else if ( Buffer.lines[i].IF_line("INITIAL",0,"MOREAD",2,3) ){
-			ov_fin = i;
-		}
-		else if ( Buffer.lines[i].IF_line("DFT",0,"GENERATION",2,3) ){
-			if ( ov_fin == 0 ) 	ov_fin = i;
-		}
+				
 		else if ( Buffer.lines[i].IF_line("MOLECULAR",0,"ORBITALS",1,2) ){
 			mo_in = i;
-			if ( orbs_fin == 0 ) 
-				orbs_fin = i;
-			if ( orbs_in_b >  0 ) 
-				orbs_fin_b = i;
+			if ( orbs_fin == 0 ) { orbs_fin   =i; }
+			if ( orbs_in_b > 0 ) { orbs_fin_b =i; }
+			m_log->input_message("Reading molecular orbitals set information, start of the block, line: ");
+			m_log->input_message(int(i));	
 		}
 		else if ( Buffer.lines[i].IF_line("MULLIKEN",1,"ANALYSIS",3,5) ) { 
 			if ( mo_fin == 0 ){
 				mo_fin = i; 
+				m_log->input_message("Reading molecular orbitals set information, end of the block, line: ");
+				m_log->input_message(int(i));
 			}
 		}
-		else if ( Buffer.lines[i].IF_line("MULLIKEN",0,"CHARGES",2,3) ) { chg_in = i; }
-		else if ( Buffer.lines[i].IF_line("MULLIKEN",0,"CHARGES",2,6) ) { chg_in = i; }
-		else if ( Buffer.lines[i].IF_line("MULLIKEN",0,"REDUCED",1,4) ) {  chg_fin = i; }
-		else if ( Buffer.lines[i].IF_line("MULLIKEN",0,"REDUCED",1,7) ) {  chg_fin = i; }
+		else if ( Buffer.lines[i].IF_line("MULLIKEN",0,"CHARGES",2,3) ) { 
+			chg_in = i;
+			m_log->input_message("Reading Muliken charges, start of the block, line: ");
+			m_log->input_message(int(i));
+		}
+		else if ( Buffer.lines[i].IF_line("MULLIKEN",0,"CHARGES",2,6) ) { 
+			chg_in = i;
+			m_log->input_message("Reading Muliken charges, start of the block, line: ");
+			m_log->input_message(int(i));
+		}
+		else if ( Buffer.lines[i].IF_line("MULLIKEN",0,"REDUCED",1,4) ) {  
+			chg_fin = i;
+			m_log->input_message("Reading Muliken charges, end of the block, line: ");
+			m_log->input_message(int(i));
+		}
+		else if ( Buffer.lines[i].IF_line("MULLIKEN",0,"REDUCED",1,7) ) {  
+			chg_fin = i;
+			m_log->input_message("Reading Muliken charges, end of the block, line: ");
+			m_log->input_message(int(i));
+		} 
 	}
 	for(unsigned j=in_coords; j<fin_coords; j++ ){
 		if ( Buffer.lines[j].line_len == 4 ){
@@ -167,6 +249,8 @@ void orca_files::parse_out(){
 			molecule.add_atom(xx,yy,zz,type_);
 		}
 	}
+	m_log->input_message("Number of atoms read:");
+	m_log->input_message(int(molecule.num_of_atoms));
 	vector<basis_orca> basisset;
 	for( unsigned i=0; i<basis_in.size(); i++ ){
 		basis_orca bo;
@@ -174,11 +258,14 @@ void orca_files::parse_out(){
 			if ( Buffer.lines[j].line_len == 7 ){
 				bo.element_type = Buffer.lines[j].get_string(6);
 			}
+			else if ( Buffer.lines[j].line_len == 8 ){
+				bo.element_type = Buffer.lines[j].get_string(7);
+			}
 			else if ( Buffer.lines[j].line_len == 2 ){
-					if ( Buffer.lines[j].words[0] != "NewGTO" ){
-						bo.shell_sym.push_back(Buffer.lines[j].get_string(0) );
-						bo.shell_size.push_back(Buffer.lines[j].get_int(1) );
-					}
+				if ( Buffer.lines[j].words[0] != "NewGTO" ){
+					bo.shell_sym.push_back(Buffer.lines[j].get_string(0) );
+					bo.shell_size.push_back(Buffer.lines[j].get_int(1) );
+				}
 			}
 			else if ( Buffer.lines[j].line_len == 3 ){
 				bo.coefficients.push_back(Buffer.lines[j].get_double(1) );
@@ -398,7 +485,6 @@ void orca_files::get_overlap(int ov_in,int ov_fin){
 	unsigned int aonum = molecule.get_ao_number();
 	
 	Ibuffer Buffer(name_f,ov_in,ov_fin);
-	std::cout<< ov_fin << std::endl; 
 	
 	vector<double> overlap_full(aonum*aonum);
 	for( unsigned i=1; i<Buffer.nLines; i++ ){
@@ -409,7 +495,7 @@ void orca_files::get_overlap(int ov_in,int ov_fin){
 		}
 		else if ( Buffer.lines[i].line_len > 1 && line_indicator == 1 ){
 			col_c = col_n;
-			for ( unsigned j=0; j<Buffer.lines[i].line_len-1; j++){
+			for ( unsigned j=1; j<Buffer.lines[i].line_len; j++){
 				overlap_full[col_c*aonum + row_n] = Buffer.lines[i].get_double(j);
 				col_c++;
 			}

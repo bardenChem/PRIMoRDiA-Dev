@@ -545,6 +545,8 @@ bool Imolecule::check(){
 		all_ok = false;
 	}
 	if ( m_overlap.size() == 0 || m_overlap[0] == 0 ){
+		m_log->input_message("Size of the overlap matrix:");
+		m_log->input_message( int(m_overlap.size() ) );
 		m_log->write_warning("Overlap matrix coeffcients not stored.");  
 		m_log->input_message("If the QM output is from MOPAC, orca or gamess your files may contain problems.\n");  
 	}

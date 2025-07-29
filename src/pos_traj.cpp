@@ -197,7 +197,7 @@ void traj_rd::init_from_folder(){
 		protein_lrd Frame;
 		if ( IF_file( fnames[i].c_str() ) ){
 			std::ifstream fr_fle( fnames[i].c_str() );
-			Frame.file_name = fnames[i];
+			Frame.file_name = fs::path(fnames[i]).stem();
 			int line = 0;
 			while( getline(fr_fle,Line) ){
 				if ( line > 0 ){
@@ -221,8 +221,7 @@ void traj_rd::init_from_folder(){
 				line++;
 			}
 			fr_fle.close();
-		if ( Frame.residues_rd.size() >= 1 )
-			frames.push_back(Frame);
+		if ( Frame.residues_rd.size() > 2 ){frames.push_back(Frame);}
 		}else { std::cout<< "file not open!"<<std::endl; }
 	}
 }
@@ -242,7 +241,9 @@ void traj_rd::calculate_res_stats(){
 	for( k=0; k<res_list.size(); k++ ){
 		for( j=0; j<19; j++ ){
 			for( i=0; i<frames.size(); i++ ){
-				res_avg[j][k] += frames[i].residues_rd[ res_list[k] ].rd_sum[j];
+				if ( frames[i].residues_rd.size() >= res_list.size() ){
+					res_avg[j][k] += frames[i].residues_rd[ res_list[k] ].rd_sum[j];
+				}
 			}
 			res_avg[j][k] /= fsize;
 		}
@@ -265,8 +266,10 @@ void traj_rd::calculate_res_stats(){
 	for( k=0; k<res_list.size(); k++ ){
 		for( j=0; j<19; j++ ){
 			for( i=0; i<frames.size(); i++ ){
-				res_sd[j][k] +=((frames[i].residues_rd[res_list[k]].rd_sum[j] - res_avg[j][k])*
+				if ( frames[i].residues_rd.size() >= res_list.size() ){
+					res_sd[j][k] +=((frames[i].residues_rd[res_list[k]].rd_sum[j] - res_avg[j][k])*
 								(frames[i].residues_rd[res_list[k]].rd_sum[j] - res_avg[j][k]) );
+				}
 			}
 			res_sd[j][k] /= frames.size();
 			res_sd[j][k] = sqrt(res_sd[j][k]);
@@ -282,6 +285,7 @@ void traj_rd::write_residues_reports(){
 				<< "softness_dual hyper_softness Multiphilic Fukushima charge Electron_Density MEP "
 				<< "hardness_TFD softness_avg hardness_int res\n";
 
+	/*
 	for( unsigned i=0;i<res_list.size();i++ ){
 		for( unsigned j=0; j<frames.size(); j++ ){
 			for( int k=0; k<frames[j].residues_rd[ res_list[i] ].rd_sum.size(); k++){
@@ -294,6 +298,24 @@ void traj_rd::write_residues_reports(){
 		}
 	}
 	res_file_f.close();	
+	*/
+	
+	for( unsigned i=0; i<frames.size(); i++ ){
+		for( unsigned j=0;j<res_list.size();j++ ){
+			for( int k=0; k<frames[i].residues_rd[ res_list[j] ].rd_sum.size(); k++){
+				if ( k == 0 ) { 
+					res_file_f << frames[i].file_name << " ";
+				}
+				res_file_f << frames[i].residues_rd[ res_list[j] ].rd_sum[k] << " ";
+			}
+			unsigned int sssize = frames[i].labels[ res_list[j] ].size();
+		
+			res_file_f << frames[i].labels[ res_list[j] ] << " "
+					   << frames[i].labels[ res_list[j] ].substr(sssize-3,sssize) << "\n";
+		}
+	}
+	res_file_f.close();
+	
 		
 	string fname_res_avg = "residues_data_stat";
 	std::ofstream res_avg_f( fname_res_avg.c_str() );	

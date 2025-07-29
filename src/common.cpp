@@ -177,22 +177,22 @@ string remove_extension(const char* file_name){
 				std::cout << file_name_string.size() << std::endl;
 				std::cout << file_name_string << std::endl;
 			}
-		}
-	}else{
-		for(unsigned int i = 0;i<file_name_string.size();i++){
-			char character = file_name_string[i];
-			if ( character == dot ){ point = i; }
-		}
-		try{
+		}		
+	}
+	for(unsigned int i = 0;i<file_name_string.size();i++){
+		char character = file_name_string[i];
+		if ( character == dot ){ point = i; }
+	}
+	try{
 		int    pos = file_name_string.size()-point;
 		return file_name_string.substr(0,file_name_string.size()-pos);
-		}catch( const std::out_of_range) {
-			std::cout << "problem 3" << std::endl;
-			std::cout << file_name_string.size() << std::endl;
-			std::cout << file_name_string << std::endl;
-			std::cout << point << std::endl;
-		}
+	}catch( const std::out_of_range) {
+		std::cout << "problem 3" << std::endl;
+		std::cout << file_name_string.size() << std::endl;
+		std::cout << file_name_string << std::endl;
+		std::cout << point << std::endl;
 	}
+	
 	return file_name_string;
 }
 /*********************************************************************************/

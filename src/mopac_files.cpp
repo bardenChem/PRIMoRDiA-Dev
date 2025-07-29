@@ -84,6 +84,7 @@ string _ao_pqn  	= "ATOM_PQN[";					//19
 string _atom_chg 	= "ATOM_CHARGES[";				//20
 string _gradients 	= "GRADIENTS:KCAL/MOL/ANGSTROM[";//21 
 string _ao_chg	 	= "AO_CHARGES[";				 //22 
+string _total_dm    = "TOTAL_DENSITY_MATRIX[";       //23
 
 vector<string> _states = {"SINGLET", "DOUBLET", "TRIPLET", "QUARTET","QUINTET"};
 /**************************************/
