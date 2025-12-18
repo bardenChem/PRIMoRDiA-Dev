@@ -211,6 +211,13 @@ void orca_files::parse_out(){
 			m_log->input_message("Reading molecular orbitals set information, start of the block, line: ");
 			m_log->input_message(int(i));	
 		}
+		else if ( Buffer.lines[i].IF_line("MOLECULAR",0,"ROHF)",3,4) ){
+			mo_in = i;
+			if ( orbs_fin == 0 ) { orbs_fin   =i; }
+			if ( orbs_in_b > 0 ) { orbs_fin_b =i; }
+			m_log->input_message("Reading molecular orbitals set information, start of the block, line: ");
+			m_log->input_message(int(i));	
+		}
 		else if ( Buffer.lines[i].IF_line("MULLIKEN",1,"ANALYSIS",3,5) ) { 
 			if ( mo_fin == 0 ){
 				mo_fin = i; 

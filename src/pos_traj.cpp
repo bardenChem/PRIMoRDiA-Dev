@@ -283,7 +283,7 @@ void traj_rd::write_residues_reports(){
 	res_file_f	<< "frame Nucleophilicity Electrophilicity Radicality "
 				<< "Netphilicity Hardness_Vee Hardness_LCP Fukui_pot_left Fukui_pot_right Fukui_pot_zero "
 				<< "softness_dual hyper_softness Multiphilic Fukushima charge Electron_Density MEP "
-				<< "hardness_TFD softness_avg hardness_int res\n";
+				<< "hardness_TFD softness_avg hardness_int res res_typ\n";
 
 	/*
 	for( unsigned i=0;i<res_list.size();i++ ){
