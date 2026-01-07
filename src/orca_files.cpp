@@ -157,15 +157,23 @@ void orca_files::parse_out(){
 			m_log->input_message("\n");
 		}		
 		else if ( Buffer.lines[i].IF_line("Time",0,"sec",7,8) ){
-			if ( ov_fin == 0 ) {
+			if ( ov_in > 0 && ov_fin == 0 ) {
 				ov_fin = i;			
-				m_log->input_message("Reading basis set information, end of the block: ");
+				m_log->input_message("Reading overlap matrix information, end of the block: ");
+				m_log->input_message(int(i));
+				m_log->input_message("\n");
+			}
+		}
+		else if ( Buffer.lines[i].IF_line("Iteration",0,"Time(sec)",8,9) ){
+			if ( ov_fin == 0 && ov_in > 0 ) {
+				ov_fin = i;			
+				m_log->input_message("Reading overlap matrix information, end of the block: ");
 				m_log->input_message(int(i));
 				m_log->input_message("\n");
 			}
 		}
 		else if ( Buffer.lines[i].IF_line("INITIAL",0,"MOREAD",2,3) ){
-			if ( ov_fin == 0 ) {
+			if ( ov_in > 0 && ov_fin == 0 ) {
 				ov_fin = i;
 				m_log->input_message("Reading overlap matrix information, end of the block: ");
 				m_log->input_message(int(i));
@@ -173,7 +181,7 @@ void orca_files::parse_out(){
 			}
 		}		
 		else if ( Buffer.lines[i].IF_line("DFT",0,"GENERATION",2,3) ){
-			if ( ov_fin == 0 ) {
+			if ( ov_in > 0 && ov_fin == 0 ) {
 				ov_fin = i;			
 				m_log->input_message("Reading basis set information, end of the block: ");
 				m_log->input_message(int(i));
