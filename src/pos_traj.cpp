@@ -278,6 +278,7 @@ void traj_rd::calculate_res_stats(){
 }
 /***************************************************************************/
 void traj_rd::write_residues_reports(){
+	
 	string fname_res = "residues_data_frames";
 	std::ofstream res_file_f( fname_res.c_str() );
 	res_file_f	<< "frame Nucleophilicity Electrophilicity Radicality "
@@ -285,7 +286,7 @@ void traj_rd::write_residues_reports(){
 				<< "softness_dual hyper_softness Multiphilic Fukushima charge Electron_Density MEP "
 				<< "hardness_TFD softness_avg hardness_int res res_typ\n";
 
-	/*
+	
 	for( unsigned i=0;i<res_list.size();i++ ){
 		for( unsigned j=0; j<frames.size(); j++ ){
 			for( int k=0; k<frames[j].residues_rd[ res_list[i] ].rd_sum.size(); k++){
@@ -298,23 +299,32 @@ void traj_rd::write_residues_reports(){
 		}
 	}
 	res_file_f.close();	
-	*/
+	
+	
+	string fname_res_b = "residues_data_frames_b";
+	std::ofstream res_file_f_b( fname_res_b.c_str() );
+	res_file_f_b << "frame Nucleophilicity Electrophilicity Radicality "
+				 << "Netphilicity Hardness_Vee Hardness_LCP Fukui_pot_left Fukui_pot_right Fukui_pot_zero "
+				 << "softness_dual hyper_softness Multiphilic Fukushima charge Electron_Density MEP "
+				 << "hardness_TFD softness_avg hardness_int res res_typ\n";
+	
 	
 	for( unsigned i=0; i<frames.size(); i++ ){
 		for( unsigned j=0;j<res_list.size();j++ ){
 			for( int k=0; k<frames[i].residues_rd[ res_list[j] ].rd_sum.size(); k++){
 				if ( k == 0 ) { 
-					res_file_f << frames[i].file_name << " ";
+					res_file_f_b << frames[i].file_name << " ";
 				}
-				res_file_f << frames[i].residues_rd[ res_list[j] ].rd_sum[k] << " ";
+				res_file_f_b << frames[i].residues_rd[ res_list[j] ].rd_sum[k] << " ";
 			}
 			unsigned int sssize = frames[i].labels[ res_list[j] ].size();
 		
-			res_file_f << frames[i].labels[ res_list[j] ] << " "
+			res_file_f_b << frames[i].labels[ res_list[j] ] << " "
 					   << frames[i].labels[ res_list[j] ].substr(sssize-3,sssize) << "\n";
 		}
 	}
-	res_file_f.close();
+	res_file_f_b.close();
+	
 	
 		
 	string fname_res_avg = "residues_data_stat";
@@ -357,6 +367,7 @@ void traj_rd::write_residues_reports(){
 	}
 	pro_avg.close();
 	
+	/*
 	string fname_lh = "local_hardness_Vee_all";
 	std::ofstream pro_lh( fname_lh.c_str() );
 	pro_lh << "frame ";
@@ -365,8 +376,12 @@ void traj_rd::write_residues_reports(){
 	}
 	pro_lh << "\n";
 	int cnt = 0;
+	
+	
 	for( unsigned i=0; i<frames[cnt].residues_rd.size();i++ ){
 		pro_lh << frames[0].labels[i] << " ";
+		cout << i <<  " " << cnt << " " <<  frames[cnt].residues_rd.size() << endl;
+		
 		for( unsigned j=0; j<frames.size(); j++){
 			pro_lh << frames[j].residues_rd[i].rd_sum[4] << " ";
 		}
@@ -392,7 +407,7 @@ void traj_rd::write_residues_reports(){
 		cnt++;
 	}
 	pro_net.close();
-	
+	/*/
 }
 /******************************************************************/
 void traj_rd::gradient(){
