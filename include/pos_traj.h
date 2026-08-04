@@ -42,6 +42,7 @@ class traj_rd{
 		//-----------------------------------------------------
 		void init_from_folder();
 		void calculate_res_stats();
+		void calculate_complex_stats();
 		void write_residues_reports();
 		void residues_pattern_recognition();
 		void gradient();

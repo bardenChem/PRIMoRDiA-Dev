@@ -1,11 +1,59 @@
-cmake_minimum_required (VERSION 3.0)
-set(CMAKE_CXX_COMPILER /usr/bin/g++)
-project (primordia_app)
-enable_language (CXX)
-include_directories (./include)
-file (GLOB SOURCES "src/*.cpp")
-add_executable(PRIMoRDiA_1.25v ${SOURCES})
-set (CMAKE_BUILD_TYPE Release)
-set (CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS} -fopenmp -O3  -std=c++17 -lstdc++fs -I /usr/include/eigen3 -lboost_iostreams")
-set (CMAKE_CXX_FLAGS_DEBUG "-pg -g -O0 -fopenmp -std=c++17 -I /usr/include/eigen3")
-target_link_libraries(PRIMoRDiA_1.25v -lstdc++fs -lboost_iostreams)
+cmake_minimum_required(VERSION 3.16)
+
+project(primordia_app LANGUAGES CXX)
+
+# Gera compile_commands.json para ferramentas como IntelliSense.
+set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
+
+file(
+    GLOB SOURCES
+    CONFIGURE_DEPENDS
+    "${CMAKE_CURRENT_SOURCE_DIR}/src/*.cpp"
+)
+
+add_executable(PRIMoRDiA_1.50v ${SOURCES})
+
+# O projeto requer C++17 por causa de std::filesystem.
+target_compile_features(
+    PRIMoRDiA_1.50v
+    PRIVATE
+    cxx_std_17
+)
+
+target_include_directories(
+    PRIMoRDiA_1.50v
+    PRIVATE
+    "${CMAKE_CURRENT_SOURCE_DIR}/include"
+)
+
+find_package(Eigen3 3.3 REQUIRED NO_MODULE)
+find_package(OpenMP REQUIRED)
+find_package(Boost REQUIRED COMPONENTS iostreams)
+
+target_link_libraries(
+    PRIMoRDiA_1.50v
+    PRIVATE
+    Eigen3::Eigen
+    OpenMP::OpenMP_CXX
+    Boost::iostreams
+    stdc++fs
+)
+
+# Facilita inspecionar variáveis durante o Debug.
+target_compile_options(
+    PRIMoRDiA_1.50v
+    PRIVATE
+    $<$<CONFIG:Debug>:-O0>
+)
+
+# GCC antigo precisava dessa biblioteca para std::filesystem.
+if(
+    CMAKE_CXX_COMPILER_ID STREQUAL "GNU"
+    AND CMAKE_CXX_COMPILER_VERSION VERSION_LESS 9
+)
+    target_link_libraries(
+        PRIMoRDiA_1.50v
+        PRIVATE
+        stdc++fs
+    )
+endif()

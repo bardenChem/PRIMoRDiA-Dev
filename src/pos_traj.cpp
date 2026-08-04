@@ -277,6 +277,67 @@ void traj_rd::calculate_res_stats(){
 	}	 
 }
 /***************************************************************************/
+void traj_rd::calculate_complex_stats(){
+
+	vector<int> complexes;
+	vector<int> proteins; 
+
+	for( unsigned i=0; i< frames.size(); i++ ){
+		if ( frames[i].file_name.compare(0, 7, "complex") == 0 ){
+			complexes.push_back(i);
+		}else if ( frames[i].file_name.compare(0, 6, "protein") == 0 ){
+			proteins.push_back(i);
+		}
+	}
+
+	if (complexes.size() != proteins.size() ){
+		cout << "Error: number of complexes and proteins are different!" << endl;
+		exit(-1);
+	}
+
+	vector< vector <vector<double> > > sum_diff(complexes.size());
+	for( unsigned i=0; i<complexes.size(); i++ ){
+		sum_diff[i].resize( res_list.size() );
+		// doing only for res_list
+		for( unsigned j=0; j<res_list.size(); j++ ){
+			sum_diff[i][j].resize(19);
+			for( int k=0; k<19; k++ ){
+				sum_diff[i][j][k] = frames[complexes[i]].residues_rd[res_list[j]].rd_sum[k] - 
+									frames[proteins[i]].residues_rd[res_list[j]].rd_sum[k];
+			}
+		}
+	}
+
+	string fname_res = "complex_protein_diff";
+	std::ofstream res_file_f( fname_res.c_str() );
+	res_file_f << "frame Nucleophilicity Electrophilicity Radicality "
+				 << "Netphilicity Hardness_Vee Hardness_LCP Fukui_pot_left Fukui_pot_right Fukui_pot_zero "
+				 << "softness_dual hyper_softness Multiphilic Fukushima charge Electron_Density MEP "
+				 << "hardness_TFD softness_avg hardness_int res res_typ\n";
+	
+	
+	for( unsigned i=0; i<sum_diff.size(); i++ ){
+		for( unsigned j=0;j< sum_diff[i].size() ;j++ ){
+
+			for( int k=0; k<sum_diff[i][j].size(); k++){
+				if ( k == 0 ) { 
+					res_file_f << frames[ complexes[i] ].file_name << " ";
+				}
+				res_file_f << sum_diff[i][j][k] << " ";
+			}
+			unsigned int sssize = frames[ complexes[i] ].labels[ res_list[j] ].size();
+		
+			res_file_f << frames[ complexes[i] ].labels[ res_list[j] ] << " "
+					   << frames[ complexes[i] ].labels[ res_list[j] ].substr(sssize-3,sssize) << "\n";
+		}
+	}
+	res_file_f.close();
+
+
+
+}
+
+/***************************************************************************/
 void traj_rd::write_residues_reports(){
 	
 	string fname_res = "residues_data_frames";
@@ -299,32 +360,6 @@ void traj_rd::write_residues_reports(){
 		}
 	}
 	res_file_f.close();	
-	
-	
-	string fname_res_b = "residues_data_frames_b";
-	std::ofstream res_file_f_b( fname_res_b.c_str() );
-	res_file_f_b << "frame Nucleophilicity Electrophilicity Radicality "
-				 << "Netphilicity Hardness_Vee Hardness_LCP Fukui_pot_left Fukui_pot_right Fukui_pot_zero "
-				 << "softness_dual hyper_softness Multiphilic Fukushima charge Electron_Density MEP "
-				 << "hardness_TFD softness_avg hardness_int res res_typ\n";
-	
-	
-	for( unsigned i=0; i<frames.size(); i++ ){
-		for( unsigned j=0;j<res_list.size();j++ ){
-			for( int k=0; k<frames[i].residues_rd[ res_list[j] ].rd_sum.size(); k++){
-				if ( k == 0 ) { 
-					res_file_f_b << frames[i].file_name << " ";
-				}
-				res_file_f_b << frames[i].residues_rd[ res_list[j] ].rd_sum[k] << " ";
-			}
-			unsigned int sssize = frames[i].labels[ res_list[j] ].size();
-		
-			res_file_f_b << frames[i].labels[ res_list[j] ] << " "
-					   << frames[i].labels[ res_list[j] ].substr(sssize-3,sssize) << "\n";
-		}
-	}
-	res_file_f_b.close();
-	
 	
 		
 	string fname_res_avg = "residues_data_stat";
