@@ -39,8 +39,10 @@ double energy_crit			= 1;
 unsigned int norm_factor 	= 5;
 bool M_R					= false;
 bool comp_H					= false;
+double smallest_pro_lig_dist= 0.0; // global variable to hold the minimum distance between protein and ligand atoms.
 /*********************************************************************************/
 unsigned int NP		= omp_get_max_threads();
+
 Itimer chronometer;
 std::unique_ptr<Ilog> m_log ( new Ilog() );
 /*********************************************************************************/

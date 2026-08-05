@@ -280,21 +280,15 @@ void traj_rd::calculate_res_stats(){
 void traj_rd::calculate_complex_stats(){
 
 	vector<int> complexes;
-	vector<int> proteins; 
+	unsigned int protein; 
 
 	for( unsigned i=0; i< frames.size(); i++ ){
 		if ( frames[i].file_name.compare(0, 7, "complex") == 0 ){
 			complexes.push_back(i);
-		}else if ( frames[i].file_name.compare(0, 6, "protein") == 0 ){
-			proteins.push_back(i);
+		}else if ( frames[i].file_name.compare(0, 7, "protein") == 0 ){
+			protein = i;
 		}
 	}
-
-	if (complexes.size() != proteins.size() ){
-		cout << "Error: number of complexes and proteins are different!" << endl;
-		exit(-1);
-	}
-
 	vector< vector <vector<double> > > sum_diff(complexes.size());
 	for( unsigned i=0; i<complexes.size(); i++ ){
 		sum_diff[i].resize( res_list.size() );
@@ -303,12 +297,12 @@ void traj_rd::calculate_complex_stats(){
 			sum_diff[i][j].resize(19);
 			for( int k=0; k<19; k++ ){
 				sum_diff[i][j][k] = frames[complexes[i]].residues_rd[res_list[j]].rd_sum[k] - 
-									frames[proteins[i]].residues_rd[res_list[j]].rd_sum[k];
+									frames[protein].residues_rd[res_list[j]].rd_sum[k];
 			}
 		}
 	}
 
-	string fname_res = "complex_protein_diff";
+	string fname_res = "complex_protein_diff.txt";
 	std::ofstream res_file_f( fname_res.c_str() );
 	res_file_f << "frame Nucleophilicity Electrophilicity Radicality "
 				 << "Netphilicity Hardness_Vee Hardness_LCP Fukui_pot_left Fukui_pot_right Fukui_pot_zero "
@@ -332,8 +326,6 @@ void traj_rd::calculate_complex_stats(){
 		}
 	}
 	res_file_f.close();
-
-
 
 }
 

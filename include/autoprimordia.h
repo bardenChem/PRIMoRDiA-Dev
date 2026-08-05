@@ -51,6 +51,7 @@ class AutoPrimordia{
 		void calculate_rd_from_traj();
 		void reaction_analysis();
 		void md_trajectory_analysis();
+		void complex_PL_analysis();
 		void lig_biding();
 		void write_global();
 };

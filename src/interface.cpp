@@ -171,6 +171,9 @@ void interface::run(){
 		traj.init_from_folder();
 		traj.calculate_res_stats();
 		traj.calculate_complex_stats();
+
+		scripts r_complex_analysis( "protein_complex_analysis", "complex_analysis" );
+		r_complex_analysis.write_r_complex_analysis("complex_protein_diff.txt","complex_analysis");
 		string from_f = "from_folder";
 		scripts res_analy( from_f.c_str(), "residuos_analysis" );
 		res_analy.write_r_residuos_barplot();

@@ -713,6 +713,1244 @@ void scripts::write_r_reaction_analysis(traj_rd& path_rd			,
 		}
 	}
 }
+/***************************************************************************
+ * Writes an R script for PCA and KRLS analyses of the final
+ * protein-ligand descriptor matrix.
+ *
+ * The input matrix must already contain the summed descriptor differences
+ * calculated by PRIMoRDiA.
+ *
+ * Expected metadata columns:
+ *
+ *     frame : complex identifier
+ *     Type  : categorical activity/class label
+ *     DG    : experimental binding free energy
+ *
+ * All remaining numerical columns are treated as molecular descriptors.
+ ***************************************************************************/
+void scripts::write_r_complex_analysis(
+    const std::string& matrix_file,
+    const std::string& output_prefix
+){
+    m_log->input_message(
+        "Writing PCA and KRLS protein-ligand analysis R script."
+    );
+
+    /*
+     * Configuration transferred from C++ to the generated R script.
+     *
+     * The names can be edited directly in the generated R file if the
+     * matrix header changes later.
+     */
+    script_file
+        << "\n"
+        << "#============================================================\n"
+        << "# PRIMoRDiA protein-ligand statistical analysis\n"
+        << "# PCA and Kernel Regularized Least Squares\n"
+        << "#============================================================\n\n"
+        << "input_file <- \"" << matrix_file << "\"\n"
+        << "output_prefix <- \"" << output_prefix << "\"\n\n";
+
+    script_file << R"PRIMORDIA_R(
+
+
+#============================================================
+# Analysis configuration
+#============================================================
+
+id_column <- "frame"
+pdb_column <- "pdb_code"
+class_column <- "Type"
+response_column <- "DG"
+
+residue_column <- "res"
+residue_type_column <- "res_typ"
+
+# Number of principal components calculated and displayed.
+pca_components <- 5
+
+# Number of descriptors selected automatically for the second PCA.
+pca2_number_variables <- 7
+
+# KRLS regularization parameter.
+krls_lambda <- 0.1
+
+manual_pca2_variables <- character(0)
+
+#============================================================
+# DG classification limits
+#
+# DG is expressed in kcal/mol.
+# More negative values indicate stronger binding.
+#
+# DG <= -10             Very Strong
+# -10 < DG <= -8        Strong
+# -8  < DG <= -6        Medium
+# DG > -6               Weak
+#============================================================
+
+very_strong_limit <- -10.0
+strong_limit <- -8.0
+medium_limit <- -6.0
+
+#============================================================
+# Packages
+#============================================================
+
+library(ggplot2)
+library(ggpubr)
+library(FactoMineR)
+library(factoextra)
+library(corrplot)
+library(dplyr)
+library(caret)
+library(KRLS)
+
+#============================================================
+# Read the residue descriptor-difference matrix
+#============================================================
+
+residue_data <- read.table(
+    input_file,
+    header = TRUE,
+    stringsAsFactors = FALSE,
+    check.names = FALSE
+)
+
+#============================================================
+# Extract the PDB code from the frame name
+#
+# Example:
+#
+# complex_5NXG_residues -> 5NXG
+#============================================================
+
+residue_data[[pdb_column]] <- toupper(
+    sub(
+        "^complex_([[:alnum:]]{4})_residues.*$",
+        "\\1",
+        residue_data[[id_column]]
+    )
+)
+
+#============================================================
+# Identify the 19 numerical descriptor columns
+#============================================================
+
+metadata_columns <- c(
+    id_column,
+    pdb_column,
+    residue_column,
+    residue_type_column
+)
+
+descriptor_names <- setdiff(
+    names(residue_data),
+    metadata_columns
+)
+
+descriptor_names <- descriptor_names[
+    vapply(
+        residue_data[
+            ,
+            descriptor_names,
+            drop = FALSE
+        ],
+        is.numeric,
+        logical(1)
+    )
+]
+
+#============================================================
+# Sum residue descriptor differences for each complex
+#
+# The input contains one line per selected residue.
+# The resulting table contains one line per complex.
+#============================================================
+
+complex_descriptor_data <- aggregate(
+    residue_data[
+        ,
+        descriptor_names,
+        drop = FALSE
+    ],
+    by = list(
+        frame = residue_data[[id_column]],
+        pdb_code = residue_data[[pdb_column]]
+    ),
+    FUN = sum,
+    na.rm = TRUE
+)
+
+# Save the matrix produced after summing the selected residues.
+
+write.table(
+    complex_descriptor_data,
+    file = paste0(
+        output_prefix,
+        "_summed_descriptor_matrix.tsv"
+    ),
+    sep = "\t",
+    quote = FALSE,
+    row.names = FALSE
+)
+
+#============================================================
+# Read experimental DG
+#
+# File structure:
+#
+# 5NXG  -11.700
+# 5NXI   -9.100
+#
+# Lines beginning with # are ignored.
+#============================================================
+
+experimental_data <- read.table(
+    experimental_file,
+    header = FALSE,
+    comment.char = "#",
+    stringsAsFactors = FALSE,
+    col.names = c(
+        pdb_column,
+        response_column
+    )
+)
+
+experimental_data[[pdb_column]] <- toupper(
+    trimws(
+        experimental_data[[pdb_column]]
+    )
+)
+
+experimental_data[[response_column]] <- as.numeric(
+    experimental_data[[response_column]]
+)
+
+#============================================================
+# Join calculated descriptors and experimental DG
+#============================================================
+
+original_pdb_order <- complex_descriptor_data[[pdb_column]]
+
+analysis_data <- merge(
+    complex_descriptor_data,
+    experimental_data,
+    by = pdb_column,
+    all.x = TRUE,
+    sort = FALSE
+)
+
+# merge() may change the row order. Restore the original matrix order.
+
+analysis_data <- analysis_data[
+    match(
+        original_pdb_order,
+        analysis_data[[pdb_column]]
+    ),
+    ,
+    drop = FALSE
+]
+
+rownames(analysis_data) <- NULL
+
+#============================================================
+# Create the affinity category
+#============================================================
+
+analysis_data[[class_column]] <- cut(
+    analysis_data[[response_column]],
+    breaks = c(
+        -Inf,
+        very_strong_limit,
+        strong_limit,
+        medium_limit,
+        Inf
+    ),
+    labels = c(
+        "Very Strong",
+        "Strong",
+        "Medium",
+        "Weak"
+    ),
+    right = TRUE,
+    ordered_result = TRUE
+)
+
+# Remove categories that are not present in this particular family.
+
+analysis_data[[class_column]] <- droplevels(
+    analysis_data[[class_column]]
+)
+
+#============================================================
+# Save descriptors, DG and classification
+#============================================================
+
+write.table(
+    analysis_data,
+    file = paste0(
+        output_prefix,
+        "_analysis_matrix.tsv"
+    ),
+    sep = "\t",
+    quote = FALSE,
+    row.names = FALSE
+)
+
+#============================================================
+# Show the association in the terminal
+#============================================================
+
+print(
+    analysis_data[
+        ,
+        c(
+            id_column,
+            pdb_column,
+            response_column,
+            class_column
+        )
+    ]
+)
+
+print(
+    table(
+        analysis_data[[class_column]],
+        useNA = "ifany"
+    )
+)
+
+#============================================================
+# Prepare descriptor data for PCA and KRLS
+#
+# DG must not be included among the predictors.
+#============================================================
+
+numeric_columns <- names(analysis_data)[
+    vapply(
+        analysis_data,
+        is.numeric,
+        logical(1)
+    )
+]
+
+descriptor_names <- setdiff(
+    numeric_columns,
+    response_column
+)
+
+descriptor_data <- analysis_data[
+    ,
+    descriptor_names,
+    drop = FALSE
+]
+
+# Remove descriptors with zero variance.
+
+near_zero_variance <- nearZeroVar(
+    descriptor_data,
+    saveMetrics = TRUE
+)
+
+selected_descriptor_names <- rownames(
+    near_zero_variance
+)[
+    !near_zero_variance$zeroVar
+]
+
+descriptor_data <- descriptor_data[
+    ,
+    selected_descriptor_names,
+    drop = FALSE
+]
+
+descriptor_names <- colnames(
+    descriptor_data
+)
+
+analysis_class <- analysis_data[[class_column]]
+experimental_dg <- analysis_data[[response_column]]
+
+
+descriptor_data <- analysis_data[
+    ,
+    descriptor_names,
+    drop = FALSE
+]
+
+# Remove constant or nearly constant variables because they cannot be
+# meaningfully standardized for PCA or KRLS.
+
+near_zero_variance <- nearZeroVar(
+    descriptor_data,
+    saveMetrics = TRUE
+)
+
+selected_descriptor_names <- rownames(
+    near_zero_variance
+)[
+    !near_zero_variance$zeroVar
+]
+
+descriptor_data <- descriptor_data[
+    ,
+    selected_descriptor_names,
+    drop = FALSE
+]
+
+descriptor_names <- colnames(descriptor_data)
+
+# Save the descriptors effectively included in the analysis.
+
+write.table(
+    data.frame(
+        descriptor = descriptor_names
+    ),
+    file = paste0(
+        output_prefix,
+        "_descriptors_used.tsv"
+    ),
+    sep = "\t",
+    quote = FALSE,
+    row.names = FALSE
+)
+
+#============================================================
+# 1. Descriptor distributions
+#============================================================
+
+create_descriptor_visualization <- function(
+    data,
+    descriptor,
+    class_name
+) {
+
+    strip_plot <- ggplot(
+        data,
+        aes(
+            x = .data[[class_name]],
+            y = .data[[descriptor]],
+            color = .data[[class_name]]
+        )
+    ) +
+        geom_jitter(
+            width = 0.15,
+            height = 0,
+            alpha = 0.70,
+            size = 2
+        ) +
+        stat_summary(
+            fun = mean,
+            geom = "point",
+            color = "black",
+            size = 3,
+            shape = 18
+        ) +
+        theme_minimal() +
+        labs(
+            x = "Type",
+            y = descriptor,
+            color = "Type"
+        )
+
+    histogram_plot <- ggplot(
+        data,
+        aes(
+            x = .data[[descriptor]]
+        )
+    ) +
+        geom_histogram(
+            bins = 10,
+            color = "black",
+            fill = "grey75"
+        ) +
+        geom_vline(
+            xintercept = mean(
+                data[[descriptor]],
+                na.rm = TRUE
+            ),
+            linetype = "dashed"
+        ) +
+        theme_minimal() +
+        labs(
+            x = descriptor,
+            y = "Count"
+        )
+
+    ggarrange(
+        strip_plot,
+        histogram_plot,
+        ncol = 2,
+        nrow = 1
+    )
+}
+
+for (descriptor in descriptor_names) {
+
+    descriptor_plot <- create_descriptor_visualization(
+        analysis_data,
+        descriptor,
+        class_column
+    )
+
+    ggsave(
+        filename = paste0(
+            output_prefix,
+            "_",
+            descriptor,
+            "_distribution.png"
+        ),
+        plot = descriptor_plot,
+        width = 8,
+        height = 4,
+        dpi = 600
+    )
+}
+
+#============================================================
+# 2. Descriptor correlation matrix
+#============================================================
+
+descriptor_correlation <- cor(
+    descriptor_data,
+    use = "pairwise.complete.obs"
+)
+
+png(
+    paste0(
+        output_prefix,
+        "_descriptor_correlations.png"
+    ),
+    width = 2400,
+    height = 2200,
+    units = "px",
+    res = 300
+)
+
+corrplot(
+    descriptor_correlation,
+    method = "color",
+    type = "upper",
+    order = "hclust",
+    tl.cex = 0.65,
+    tl.col = "black",
+    diag = FALSE
+)
+
+dev.off()
+
+write.table(
+    descriptor_correlation,
+    file = paste0(
+        output_prefix,
+        "_descriptor_correlations.tsv"
+    ),
+    sep = "\t",
+    quote = FALSE,
+    col.names = NA
+)
+
+#============================================================
+# 3. First PCA: all nonconstant numerical descriptors
+#============================================================
+
+number_pca_components <- min(
+    pca_components,
+    ncol(descriptor_data),
+    nrow(descriptor_data) - 1
+)
+
+pca_result <- PCA(
+    descriptor_data,
+    scale.unit = TRUE,
+    graph = FALSE,
+    ncp = number_pca_components
+)
+
+#------------------------------------------------------------
+# 3.1 Eigenvalues and explained variance
+#------------------------------------------------------------
+
+pca_eigenvalues <- get_eigenvalue(
+    pca_result
+)
+
+write.table(
+    pca_eigenvalues,
+    file = paste0(
+        output_prefix,
+        "_pca_eigenvalues.tsv"
+    ),
+    sep = "\t",
+    quote = FALSE,
+    col.names = NA
+)
+
+png(
+    paste0(
+        output_prefix,
+        "_pca_explained_variance.png"
+    ),
+    width = 1600,
+    height = 1200,
+    units = "px",
+    res = 300
+)
+
+print(
+    fviz_eig(
+        pca_result,
+        addlabels = TRUE
+    )
+)
+
+dev.off()
+
+#------------------------------------------------------------
+# 3.2 Variable coordinates, contributions and cos2
+#------------------------------------------------------------
+
+pca_variables <- get_pca_var(
+    pca_result
+)
+
+write.table(
+    pca_variables$coord,
+    file = paste0(
+        output_prefix,
+        "_pca_variable_coordinates.tsv"
+    ),
+    sep = "\t",
+    quote = FALSE,
+    col.names = NA
+)
+
+write.table(
+    pca_variables$contrib,
+    file = paste0(
+        output_prefix,
+        "_pca_variable_contributions.tsv"
+    ),
+    sep = "\t",
+    quote = FALSE,
+    col.names = NA
+)
+
+write.table(
+    pca_variables$cos2,
+    file = paste0(
+        output_prefix,
+        "_pca_variable_cos2.tsv"
+    ),
+    sep = "\t",
+    quote = FALSE,
+    col.names = NA
+)
+
+png(
+    paste0(
+        output_prefix,
+        "_pca_variables_cos2.png"
+    ),
+    width = 1800,
+    height = 1500,
+    units = "px",
+    res = 300
+)
+
+print(
+    fviz_pca_var(
+        pca_result,
+        col.var = "cos2",
+        gradient.cols = c(
+            "#00AFBB",
+            "#E7B800",
+            "#FC4E07"
+        ),
+        repel = TRUE
+    )
+)
+
+dev.off()
+
+png(
+    paste0(
+        output_prefix,
+        "_pca_contribution_matrix.png"
+    ),
+    width = 1400,
+    height = 1800,
+    units = "px",
+    res = 300
+)
+
+corrplot(
+    pca_variables$contrib,
+    is.corr = FALSE
+)
+
+dev.off()
+
+#------------------------------------------------------------
+# 3.3 PCA scores
+#------------------------------------------------------------
+
+pca_scores <- data.frame(
+    frame = analysis_data[[id_column]],
+    Type = analysis_data[[class_column]],
+    pca_result$ind$coord,
+    check.names = FALSE
+)
+
+write.table(
+    pca_scores,
+    file = paste0(
+        output_prefix,
+        "_pca_scores.tsv"
+    ),
+    sep = "\t",
+    quote = FALSE,
+    row.names = FALSE
+)
+
+#------------------------------------------------------------
+# 3.4 PCA biplots
+#------------------------------------------------------------
+
+png(
+    paste0(
+        output_prefix,
+        "_pca_biplot_PC1_PC2.png"
+    ),
+    width = 1900,
+    height = 1400,
+    units = "px",
+    res = 300
+)
+
+print(
+    fviz_pca_biplot(
+        pca_result,
+        axes = c(1, 2),
+        col.ind = analysis_data[[class_column]],
+        palette = "jco",
+        addEllipses = TRUE,
+        label = "var",
+        col.var = "black",
+        repel = TRUE,
+        legend.title = "Activity"
+    )
+)
+
+dev.off()
+
+if (number_pca_components >= 3) {
+
+    png(
+        paste0(
+            output_prefix,
+            "_pca_biplot_PC1_PC3.png"
+        ),
+        width = 1900,
+        height = 1400,
+        units = "px",
+        res = 300
+    )
+
+    print(
+        fviz_pca_biplot(
+            pca_result,
+            axes = c(1, 3),
+            col.ind = analysis_data[[class_column]],
+            palette = "jco",
+            addEllipses = TRUE,
+            label = "var",
+            col.var = "black",
+            repel = TRUE,
+            legend.title = "Activity"
+        )
+    )
+
+    dev.off()
+}
+
+#============================================================
+# 4. Second PCA
+#
+# The original script selected columns by fixed numerical positions.
+# Here, variables can be provided manually or selected automatically
+# from the largest summed contributions to the first three PCs.
+#============================================================
+
+if (length(manual_pca2_variables) > 0) {
+
+    pca2_descriptor_names <- manual_pca2_variables
+
+} else {
+
+    number_selection_axes <- min(
+        3,
+        ncol(pca_variables$contrib)
+    )
+
+    contribution_scores <- rowSums(
+        pca_variables$contrib[
+            ,
+            seq_len(number_selection_axes),
+            drop = FALSE
+        ]
+    )
+
+    ordered_contributions <- sort(
+        contribution_scores,
+        decreasing = TRUE
+    )
+
+    number_selected_variables <- min(
+        pca2_number_variables,
+        length(ordered_contributions)
+    )
+
+    pca2_descriptor_names <- names(
+        ordered_contributions
+    )[
+        seq_len(number_selected_variables)
+    ]
+}
+
+pca2_data <- descriptor_data[
+    ,
+    pca2_descriptor_names,
+    drop = FALSE
+]
+
+write.table(
+    data.frame(
+        descriptor = pca2_descriptor_names
+    ),
+    file = paste0(
+        output_prefix,
+        "_pca2_selected_descriptors.tsv"
+    ),
+    sep = "\t",
+    quote = FALSE,
+    row.names = FALSE
+)
+
+number_pca2_components <- min(
+    pca_components,
+    ncol(pca2_data),
+    nrow(pca2_data) - 1
+)
+
+pca2_result <- PCA(
+    pca2_data,
+    scale.unit = TRUE,
+    graph = FALSE,
+    ncp = number_pca2_components
+)
+
+pca2_eigenvalues <- get_eigenvalue(
+    pca2_result
+)
+
+write.table(
+    pca2_eigenvalues,
+    file = paste0(
+        output_prefix,
+        "_pca2_eigenvalues.tsv"
+    ),
+    sep = "\t",
+    quote = FALSE,
+    col.names = NA
+)
+
+png(
+    paste0(
+        output_prefix,
+        "_pca2_explained_variance.png"
+    ),
+    width = 1600,
+    height = 1200,
+    units = "px",
+    res = 300
+)
+
+print(
+    fviz_eig(
+        pca2_result,
+        addlabels = TRUE
+    )
+)
+
+dev.off()
+
+pca2_variables <- get_pca_var(
+    pca2_result
+)
+
+write.table(
+    pca2_variables$contrib,
+    file = paste0(
+        output_prefix,
+        "_pca2_variable_contributions.tsv"
+    ),
+    sep = "\t",
+    quote = FALSE,
+    col.names = NA
+)
+
+png(
+    paste0(
+        output_prefix,
+        "_pca2_contribution_matrix.png"
+    ),
+    width = 1400,
+    height = 1800,
+    units = "px",
+    res = 300
+)
+
+corrplot(
+    pca2_variables$contrib,
+    is.corr = FALSE
+)
+
+dev.off()
+
+pca2_scores <- data.frame(
+    frame = analysis_data[[id_column]],
+    Type = analysis_data[[class_column]],
+    pca2_result$ind$coord,
+    check.names = FALSE
+)
+
+write.table(
+    pca2_scores,
+    file = paste0(
+        output_prefix,
+        "_pca2_scores.tsv"
+    ),
+    sep = "\t",
+    quote = FALSE,
+    row.names = FALSE
+)
+
+png(
+    paste0(
+        output_prefix,
+        "_pca2_biplot_PC1_PC2.png"
+    ),
+    width = 1900,
+    height = 1400,
+    units = "px",
+    res = 300
+)
+
+print(
+    fviz_pca_biplot(
+        pca2_result,
+        axes = c(1, 2),
+        col.ind = analysis_data[[class_column]],
+        palette = "jco",
+        addEllipses = TRUE,
+        label = "var",
+        col.var = "black",
+        repel = TRUE,
+        legend.title = "Activity"
+    )
+)
+
+dev.off()
+
+if (number_pca2_components >= 3) {
+
+    png(
+        paste0(
+            output_prefix,
+            "_pca2_biplot_PC1_PC3.png"
+        ),
+        width = 1900,
+        height = 1400,
+        units = "px",
+        res = 300
+    )
+
+    print(
+        fviz_pca_biplot(
+            pca2_result,
+            axes = c(1, 3),
+            col.ind = analysis_data[[class_column]],
+            palette = "jco",
+            addEllipses = TRUE,
+            label = "var",
+            col.var = "black",
+            repel = TRUE,
+            legend.title = "Activity"
+        )
+    )
+
+    dev.off()
+}
+
+#============================================================
+# 5. KRLS regression
+#
+# The selected PCA2 descriptors are used as KRLS predictors.
+# They are centered and scaled before fitting.
+#============================================================
+
+krls_predictor_data <- pca2_data
+
+krls_preprocess <- preProcess(
+    krls_predictor_data,
+    method = c(
+        "center",
+        "scale"
+    )
+)
+
+krls_scaled_data <- predict(
+    krls_preprocess,
+    krls_predictor_data
+)
+
+experimental_dg <- analysis_data[
+    [
+        response_column
+    ]
+]
+
+krls_model <- krls(
+    X = as.matrix(krls_scaled_data),
+    y = experimental_dg,
+    lambda = krls_lambda
+)
+
+capture.output(
+    summary(krls_model),
+    file = paste0(
+        output_prefix,
+        "_krls_summary.txt"
+    )
+)
+
+png(
+    paste0(
+        output_prefix,
+        "_krls_diagnostic.png"
+    ),
+    width = 1800,
+    height = 1400,
+    units = "px",
+    res = 300
+)
+
+plot(krls_model)
+
+dev.off()
+
+fitted_dg <- as.numeric(
+    krls_model$fitted
+)
+
+krls_predictions <- data.frame(
+    frame = analysis_data[[id_column]],
+    Type = analysis_data[[class_column]],
+    Experimental_DG = experimental_dg,
+    Fitted_DG = fitted_dg,
+    Residual = experimental_dg - fitted_dg
+)
+
+write.table(
+    krls_predictions,
+    file = paste0(
+        output_prefix,
+        "_krls_fitted_values.tsv"
+    ),
+    sep = "\t",
+    quote = FALSE,
+    row.names = FALSE
+)
+
+#------------------------------------------------------------
+# 5.1 KRLS fit metrics
+#
+# These metrics describe the fit to the same data used to train the
+# model. They are not yet external-validation metrics.
+#------------------------------------------------------------
+
+residual_sum_squares <- sum(
+    (
+        experimental_dg -
+        fitted_dg
+    )^2
+)
+
+total_sum_squares <- sum(
+    (
+        experimental_dg -
+        mean(experimental_dg)
+    )^2
+)
+
+r_squared_fit <- 1.0 - (
+    residual_sum_squares /
+    total_sum_squares
+)
+
+rmse_fit <- sqrt(
+    mean(
+        (
+            experimental_dg -
+            fitted_dg
+        )^2
+    )
+)
+
+mae_fit <- mean(
+    abs(
+        experimental_dg -
+        fitted_dg
+    )
+)
+
+spearman_fit <- cor(
+    experimental_dg,
+    fitted_dg,
+    method = "spearman"
+)
+
+krls_metrics <- data.frame(
+    metric = c(
+        "R2_fit",
+        "RMSE_fit",
+        "MAE_fit",
+        "Spearman_fit",
+        "Lambda",
+        "Number_samples",
+        "Number_predictors"
+    ),
+    value = c(
+        r_squared_fit,
+        rmse_fit,
+        mae_fit,
+        spearman_fit,
+        krls_lambda,
+        nrow(krls_scaled_data),
+        ncol(krls_scaled_data)
+    )
+)
+
+write.table(
+    krls_metrics,
+    file = paste0(
+        output_prefix,
+        "_krls_metrics.tsv"
+    ),
+    sep = "\t",
+    quote = FALSE,
+    row.names = FALSE
+)
+
+#------------------------------------------------------------
+# 5.2 Experimental versus fitted plot
+#------------------------------------------------------------
+
+krls_plot <- ggplot(
+    krls_predictions,
+    aes(
+        x = Experimental_DG,
+        y = Fitted_DG,
+        color = Type
+    )
+) +
+    geom_point(
+        size = 3,
+        alpha = 0.80
+    ) +
+    geom_abline(
+        slope = 1,
+        intercept = 0,
+        linetype = "dashed",
+        color = "black",
+        linewidth = 0.8
+    ) +
+    annotate(
+        "text",
+        x = Inf,
+        y = -Inf,
+        hjust = 1.1,
+        vjust = -1.2,
+        label = paste0(
+            "R² fit = ",
+            round(
+                r_squared_fit,
+                4
+            ),
+            "\nRMSE = ",
+            round(
+                rmse_fit,
+                4
+            ),
+            "\nMAE = ",
+            round(
+                mae_fit,
+                4
+            )
+        )
+    ) +
+    theme_minimal() +
+    labs(
+        title = "Experimental versus fitted values — KRLS",
+        x = "Experimental binding free energy",
+        y = "Fitted binding free energy",
+        color = "Activity"
+    )
+
+ggsave(
+    filename = paste0(
+        output_prefix,
+        "_krls_fitted.png"
+    ),
+    plot = krls_plot,
+    width = 6,
+    height = 5,
+    dpi = 600
+)
+
+ggsave(
+    filename = paste0(
+        output_prefix,
+        "_krls_fitted.pdf"
+    ),
+    plot = krls_plot,
+    width = 6,
+    height = 5
+)
+
+#============================================================
+# 6. Analysis summary
+#============================================================
+
+cat("\n")
+cat("PRIMoRDiA PCA and KRLS analysis completed.\n")
+cat("Input matrix:", input_file, "\n")
+cat("Number of complexes:", nrow(analysis_data), "\n")
+cat("Number of descriptors in PCA1:", ncol(descriptor_data), "\n")
+cat("Number of descriptors in PCA2/KRLS:", ncol(pca2_data), "\n")
+cat("KRLS lambda:", krls_lambda, "\n")
+cat("KRLS fitted R2:", r_squared_fit, "\n")
+cat("KRLS fitted RMSE:", rmse_fit, "\n")
+cat("KRLS fitted MAE:", mae_fit, "\n")
+cat("\n")
+
+)PRIMORDIA_R";
+}
+
+
+/********************************************************************************/
 
 //================================================================================
 //END OF FILE

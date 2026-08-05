@@ -1,6 +1,8 @@
 cmake_minimum_required(VERSION 3.16)
 
-project(primordia_app LANGUAGES CXX)
+project(primordia_app VERSION 1.50 LANGUAGES CXX)
+
+include(GNUInstallDirs)
 
 # Gera compile_commands.json para ferramentas como IntelliSense.
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
@@ -57,3 +59,8 @@ if(
         stdc++fs
     )
 endif()
+
+install(
+    TARGETS PRIMoRDiA_1.50v
+    RUNTIME DESTINATION "${CMAKE_INSTALL_BINDIR}"
+)

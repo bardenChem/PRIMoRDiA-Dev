@@ -51,6 +51,7 @@ class scripts{
 		void write_r_heatmap(std::vector< std::vector<double> > rd_numerical,std::vector<std::string> rds,std::vector<std::string> residues);
 		void write_r_residuos_barplot();
 		void write_r_reaction_analysis(traj_rd& path_rd,ReactionAnalysis& r_info,std::string& nameb );
+		void write_r_complex_analysis( const std::string& matrix_file,  const std::string& output_prefix);
 };
 #endif
 //================================================================================

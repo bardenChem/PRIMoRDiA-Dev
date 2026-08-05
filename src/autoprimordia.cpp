@@ -21,6 +21,7 @@
 #include <string>
 #include <fstream>
 #include <vector>
+#include <set>
 #include <memory>
 #include <algorithm>
 #include <omp.h>
@@ -79,6 +80,7 @@ AutoPrimordia::AutoPrimordia(const char* file_list):
 				else if	( list_f.lines[i].words[j] == "composite" )	 comp_H		 = true;
 				else if	( list_f.lines[i].words[j] == "pymols" )	 pymol_script= true;
 				else if ( list_f.lines[i].words[j] == "npgrid" )     NP     	 = list_f.lines[i].get_int(j+1);
+				else if ( list_f.lines[i].words[j] == "smallest_pro_lig_dist") smallest_pro_lig_dist = list_f.lines[i].get_double(j+1);
 			}
 		}
 	}
@@ -98,6 +100,9 @@ void AutoPrimordia::init(){
 	else if	( run_type == "reaction" ){
 		this->calculate_rd_from_traj();
 		this->reaction_analysis();
+	}
+	if (smallest_pro_lig_dist > 0.0) {
+		this->complex_PL_analysis();
 	}
 	this->write_global();
 }
@@ -519,6 +524,41 @@ void AutoPrimordia::md_trajectory_analysis(){
 	fs::create_directory("average_trj");
 	average_rd.name = "avg_rd";
 	average_rd.write_models("average_trj");
+}
+/*************************************************************/
+void AutoPrimordia::complex_PL_analysis(){	
+
+
+		fs::path c_path = fs::current_path();
+		std::vector<string> fnames; 
+		for ( const auto & entry : fs::directory_iterator(c_path) ){
+			string tmp_name = entry.path();
+			if ( check_file_ext( ".pdb",tmp_name.c_str() ) ){
+				tmp_name = entry.path().stem();
+				if ( tmp_name.compare(0, 7, "complex") == 0 ){	
+					fnames.push_back( entry.path() );				
+				}
+			}
+		}
+		std::set<int> set_res;
+		for (unsigned i=0; i<fnames.size(); i++){
+			Iprotein prot(fnames[i].c_str());
+			vector<int> res = prot.distance_from_lig(smallest_pro_lig_dist);
+			set_res.insert(res.begin(), res.end());
+		}
+		vector<int> rs_l( set_res.begin(),set_res.end() );
+		
+		traj_rd traj( rs_l, "no_path" );
+		traj.init_from_folder();
+		traj.calculate_res_stats();
+		traj.calculate_complex_stats();
+
+
+	if ( M_R ){
+		scripts r_complex_analysis( RDs[0].mol_info.name.c_str(), "complex_analysis" );
+		r_complex_analysis.write_r_complex_analysis("complex_protein_diff.txt","complex_analysis");
+	}
+
 }
 /*************************************************************/
 void AutoPrimordia::write_global(){
