@@ -355,6 +355,7 @@ void primordia::init_protein_RD(const char* file_name	,
 		}else{
 			double band_temp   = (molecule.MOnmb/100.0000)*band;
 			unsigned int bandn = std::round(band_temp);
+			m_log->input_message("Band number for band reactivity descriptors: "+std::to_string(bandn));
 			lrdCnd.calculate_frontier_orbitals(molecule,bandn);
 		}
 		lrdCnd.calculate_fukui_potential(molecule);

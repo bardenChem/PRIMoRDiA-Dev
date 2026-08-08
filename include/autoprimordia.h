@@ -36,6 +36,9 @@ class AutoPrimordia{
 	public:
 		//member variables
 		const char* m_file_list;
+		unsigned int gridsize;
+		std::string band_method;
+		double bandgap;
 		std::string run_type;		
 		std::vector<primordia> RDs;	
 		ReactionAnalysis trj_info;

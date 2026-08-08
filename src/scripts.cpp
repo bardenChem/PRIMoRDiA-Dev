@@ -713,46 +713,72 @@ void scripts::write_r_reaction_analysis(traj_rd& path_rd			,
 		}
 	}
 }
+
 /***************************************************************************
- * Writes an R script for PCA and KRLS analyses of the final
- * protein-ligand descriptor matrix.
+ * Writes an R script for PCA and KRLS analyses of protein-ligand
+ * descriptor differences.
  *
- * The input matrix must already contain the summed descriptor differences
- * calculated by PRIMoRDiA.
+ * The PRIMoRDiA input matrix contains one row per protein-ligand complex.
+ * Each numerical descriptor corresponds to the total perturbation induced
+ * by the ligand over the selected protein region:
  *
- * Expected metadata columns:
+ *     sum[ descriptor(complex) - descriptor(protein) ]
  *
- *     frame : complex identifier
- *     Type  : categorical activity/class label
- *     DG    : experimental binding free energy
+ * The summation is performed by PRIMoRDiA before this R script is generated.
  *
- * All remaining numerical columns are treated as molecular descriptors.
+ * Experimental binding free energies are read from:
+ *
+ *     experimental_dG.txt
+ *
+ * The PDB code is extracted from frame names such as:
+ *
+ *     complex_5NXG_residues
+ *
+ * The R script:
+ *
+ *   1. reads the PRIMoRDiA descriptor matrix;
+ *   2. extracts the PDB identifier;
+ *   3. reads and associates experimental DG values;
+ *   4. creates affinity classes;
+ *   5. performs PCA using all usable descriptors;
+ *   6. automatically selects descriptors for a second PCA;
+ *   7. fits a KRLS model using the selected descriptors.
  ***************************************************************************/
 void scripts::write_r_complex_analysis(
     const std::string& matrix_file,
-    const std::string& output_prefix
+    const std::string& output_prefix    
 ){
     m_log->input_message(
         "Writing PCA and KRLS protein-ligand analysis R script."
     );
 
-    /*
-     * Configuration transferred from C++ to the generated R script.
-     *
-     * The names can be edited directly in the generated R file if the
-     * matrix header changes later.
-     */
     script_file
         << "\n"
         << "#============================================================\n"
         << "# PRIMoRDiA protein-ligand statistical analysis\n"
         << "# PCA and Kernel Regularized Least Squares\n"
         << "#============================================================\n\n"
+
         << "input_file <- \"" << matrix_file << "\"\n"
-        << "output_prefix <- \"" << output_prefix << "\"\n\n";
+        << "experimental_file <- \"experimental_dG.txt\"\n"
+        << "output_prefix <- \"" << output_prefix << "\"\n\n"
+
+
+        << "# DG classification limits (kcal/mol)\n"
+        << "# DG <= -13.0            Very Strong\n"
+        << "# -13.0 < DG <= -9.0     Strong\n"
+        << "#  -9.0 < DG <= -6.0     Medium\n"
+        << "#  -6.0 < DG <= -3.0     Weak\n"
+        << "# DG > -3.0              Very Weak\n"
+        << "# DG classification limits (kcal/mol)\n"
+        << "very_strong_limit <- " << -13.0 << "\n"
+        << "strong_limit <- " << -9.0 << "\n"
+        << "medium_limit <- " << -6.0 << "\n"
+        << "weak_limit <- "   << -3.0 << "\n\n";
+
+
 
     script_file << R"PRIMORDIA_R(
-
 
 #============================================================
 # Analysis configuration
@@ -763,35 +789,13 @@ pdb_column <- "pdb_code"
 class_column <- "Type"
 response_column <- "DG"
 
-residue_column <- "res"
-residue_type_column <- "res_typ"
-
-# Number of principal components calculated and displayed.
 pca_components <- 5
 
-# Number of descriptors selected automatically for the second PCA.
+# Number of descriptors automatically selected after PCA1.
 pca2_number_variables <- 7
 
 # KRLS regularization parameter.
 krls_lambda <- 0.1
-
-manual_pca2_variables <- character(0)
-
-#============================================================
-# DG classification limits
-#
-# DG is expressed in kcal/mol.
-# More negative values indicate stronger binding.
-#
-# DG <= -10             Very Strong
-# -10 < DG <= -8        Strong
-# -8  < DG <= -6        Medium
-# DG > -6               Weak
-#============================================================
-
-very_strong_limit <- -10.0
-strong_limit <- -8.0
-medium_limit <- -6.0
 
 #============================================================
 # Packages
@@ -802,58 +806,62 @@ library(ggpubr)
 library(FactoMineR)
 library(factoextra)
 library(corrplot)
-library(dplyr)
 library(caret)
 library(KRLS)
 
 #============================================================
-# Read the residue descriptor-difference matrix
+# Read PRIMoRDiA descriptor matrix
+#
+# The input already contains one row per complex.
+# No residue manipulation or summation is performed here.
 #============================================================
 
-residue_data <- read.table(
+descriptor_matrix <- read.table(
     input_file,
     header = TRUE,
     stringsAsFactors = FALSE,
     check.names = FALSE
 )
 
+descriptor_matrix[[id_column]] <- as.character(
+    descriptor_matrix[[id_column]]
+)
+
 #============================================================
-# Extract the PDB code from the frame name
+# Extract PDB code
 #
 # Example:
 #
 # complex_5NXG_residues -> 5NXG
 #============================================================
 
-residue_data[[pdb_column]] <- toupper(
+descriptor_matrix[[pdb_column]] <- toupper(
     sub(
-        "^complex_([[:alnum:]]{4})_residues.*$",
+        "^complex_([[:alnum:]]{4}).*$",
         "\\1",
-        residue_data[[id_column]]
+        descriptor_matrix[[id_column]]
     )
 )
 
 #============================================================
-# Identify the 19 numerical descriptor columns
+# Identify descriptor columns
 #============================================================
 
 metadata_columns <- c(
     id_column,
-    pdb_column,
-    residue_column,
-    residue_type_column
+    pdb_column
 )
 
-descriptor_names <- setdiff(
-    names(residue_data),
+candidate_descriptor_names <- setdiff(
+    names(descriptor_matrix),
     metadata_columns
 )
 
-descriptor_names <- descriptor_names[
+descriptor_names <- candidate_descriptor_names[
     vapply(
-        residue_data[
+        descriptor_matrix[
             ,
-            descriptor_names,
+            candidate_descriptor_names,
             drop = FALSE
         ],
         is.numeric,
@@ -861,49 +869,26 @@ descriptor_names <- descriptor_names[
     )
 ]
 
-#============================================================
-# Sum residue descriptor differences for each complex
-#
-# The input contains one line per selected residue.
-# The resulting table contains one line per complex.
-#============================================================
-
-complex_descriptor_data <- aggregate(
-    residue_data[
-        ,
-        descriptor_names,
-        drop = FALSE
-    ],
-    by = list(
-        frame = residue_data[[id_column]],
-        pdb_code = residue_data[[pdb_column]]
+complex_descriptor_data <- descriptor_matrix[
+    ,
+    c(
+        id_column,
+        pdb_column,
+        descriptor_names
     ),
-    FUN = sum,
-    na.rm = TRUE
-)
-
-# Save the matrix produced after summing the selected residues.
-
-write.table(
-    complex_descriptor_data,
-    file = paste0(
-        output_prefix,
-        "_summed_descriptor_matrix.tsv"
-    ),
-    sep = "\t",
-    quote = FALSE,
-    row.names = FALSE
-)
+    drop = FALSE
+]
 
 #============================================================
-# Read experimental DG
+# Read experimental binding free energies
 #
-# File structure:
+# experimental_dG.txt:
 #
+# # Experimental affinity converted to binding free energy
+# # Values in kcal/mol
 # 5NXG  -11.700
 # 5NXI   -9.100
-#
-# Lines beginning with # are ignored.
+# ...
 #============================================================
 
 experimental_data <- read.table(
@@ -919,7 +904,9 @@ experimental_data <- read.table(
 
 experimental_data[[pdb_column]] <- toupper(
     trimws(
-        experimental_data[[pdb_column]]
+        as.character(
+            experimental_data[[pdb_column]]
+        )
     )
 )
 
@@ -928,7 +915,7 @@ experimental_data[[response_column]] <- as.numeric(
 )
 
 #============================================================
-# Join calculated descriptors and experimental DG
+# Associate descriptors with experimental DG
 #============================================================
 
 original_pdb_order <- complex_descriptor_data[[pdb_column]]
@@ -940,8 +927,6 @@ analysis_data <- merge(
     all.x = TRUE,
     sort = FALSE
 )
-
-# merge() may change the row order. Restore the original matrix order.
 
 analysis_data <- analysis_data[
     match(
@@ -955,7 +940,21 @@ analysis_data <- analysis_data[
 rownames(analysis_data) <- NULL
 
 #============================================================
-# Create the affinity category
+# Create affinity classification
+#
+# More negative DG means stronger binding.
+#
+# DG <= very_strong_limit
+#       Very Strong
+#
+# very_strong_limit < DG <= strong_limit
+#       Strong
+#
+# strong_limit < DG <= medium_limit
+#       Medium
+#
+# DG > medium_limit
+#       Weak
 #============================================================
 
 analysis_data[[class_column]] <- cut(
@@ -965,26 +964,26 @@ analysis_data[[class_column]] <- cut(
         very_strong_limit,
         strong_limit,
         medium_limit,
+        weak_limit,
         Inf
     ),
     labels = c(
         "Very Strong",
         "Strong",
         "Medium",
-        "Weak"
+        "Weak",
+        "Very Weak"
     ),
     right = TRUE,
     ordered_result = TRUE
 )
-
-# Remove categories that are not present in this particular family.
 
 analysis_data[[class_column]] <- droplevels(
     analysis_data[[class_column]]
 )
 
 #============================================================
-# Save descriptors, DG and classification
+# Save final matrix used for statistical analyses
 #============================================================
 
 write.table(
@@ -997,10 +996,6 @@ write.table(
     quote = FALSE,
     row.names = FALSE
 )
-
-#============================================================
-# Show the association in the terminal
-#============================================================
 
 print(
     analysis_data[
@@ -1022,9 +1017,9 @@ print(
 )
 
 #============================================================
-# Prepare descriptor data for PCA and KRLS
+# Prepare descriptors
 #
-# DG must not be included among the predictors.
+# DG is numeric but must NOT be included among predictors.
 #============================================================
 
 numeric_columns <- names(analysis_data)[
@@ -1046,17 +1041,19 @@ descriptor_data <- analysis_data[
     drop = FALSE
 ]
 
-# Remove descriptors with zero variance.
+#============================================================
+# Remove zero-variance descriptors
+#============================================================
 
-near_zero_variance <- nearZeroVar(
+zero_variance_metrics <- nearZeroVar(
     descriptor_data,
     saveMetrics = TRUE
 )
 
 selected_descriptor_names <- rownames(
-    near_zero_variance
+    zero_variance_metrics
 )[
-    !near_zero_variance$zeroVar
+    !zero_variance_metrics$zeroVar
 ]
 
 descriptor_data <- descriptor_data[
@@ -1069,39 +1066,27 @@ descriptor_names <- colnames(
     descriptor_data
 )
 
-analysis_class <- analysis_data[[class_column]]
-experimental_dg <- analysis_data[[response_column]]
+# IMPORTANT:
+# [[ ]] returns the column as a vector.
+#
+# analysis_data["DG"] would return a one-column data.frame
+# and must not be used for KRLS or numerical metrics.
 
-
-descriptor_data <- analysis_data[
-    ,
-    descriptor_names,
-    drop = FALSE
-]
-
-# Remove constant or nearly constant variables because they cannot be
-# meaningfully standardized for PCA or KRLS.
-
-near_zero_variance <- nearZeroVar(
-    descriptor_data,
-    saveMetrics = TRUE
+experimental_dg <- as.numeric(
+    analysis_data[[response_column]]
 )
 
-selected_descriptor_names <- rownames(
-    near_zero_variance
-)[
-    !near_zero_variance$zeroVar
-]
+analysis_class <- analysis_data[[class_column]]
 
-descriptor_data <- descriptor_data[
-    ,
-    selected_descriptor_names,
-    drop = FALSE
-]
+# Confidence ellipses require enough observations in each class.
 
-descriptor_names <- colnames(descriptor_data)
+class_counts <- table(
+    analysis_class
+)
 
-# Save the descriptors effectively included in the analysis.
+draw_class_ellipses <-
+    length(class_counts) > 1 &&
+    all(class_counts >= 3)
 
 write.table(
     data.frame(
@@ -1149,9 +1134,9 @@ create_descriptor_visualization <- function(
         ) +
         theme_minimal() +
         labs(
-            x = "Type",
+            x = "Affinity class",
             y = descriptor,
-            color = "Type"
+            color = "Affinity class"
         )
 
     histogram_plot <- ggplot(
@@ -1252,7 +1237,9 @@ write.table(
 )
 
 #============================================================
-# 3. First PCA: all nonconstant numerical descriptors
+# 3. PCA1
+#
+# Uses all nonconstant numerical descriptors.
 #============================================================
 
 number_pca_components <- min(
@@ -1269,7 +1256,7 @@ pca_result <- PCA(
 )
 
 #------------------------------------------------------------
-# 3.1 Eigenvalues and explained variance
+# 3.1 Eigenvalues
 #------------------------------------------------------------
 
 pca_eigenvalues <- get_eigenvalue(
@@ -1308,7 +1295,7 @@ print(
 dev.off()
 
 #------------------------------------------------------------
-# 3.2 Variable coordinates, contributions and cos2
+# 3.2 PCA variable properties
 #------------------------------------------------------------
 
 pca_variables <- get_pca_var(
@@ -1398,7 +1385,9 @@ dev.off()
 
 pca_scores <- data.frame(
     frame = analysis_data[[id_column]],
-    Type = analysis_data[[class_column]],
+    pdb_code = analysis_data[[pdb_column]],
+    DG = experimental_dg,
+    Type = analysis_class,
     pca_result$ind$coord,
     check.names = FALSE
 )
@@ -1415,7 +1404,7 @@ write.table(
 )
 
 #------------------------------------------------------------
-# 3.4 PCA biplots
+# 3.4 PCA1 PC1 x PC2
 #------------------------------------------------------------
 
 png(
@@ -1433,17 +1422,21 @@ print(
     fviz_pca_biplot(
         pca_result,
         axes = c(1, 2),
-        col.ind = analysis_data[[class_column]],
+        col.ind = analysis_class,
         palette = "jco",
-        addEllipses = TRUE,
+        addEllipses = draw_class_ellipses,
         label = "var",
         col.var = "black",
         repel = TRUE,
-        legend.title = "Activity"
+        legend.title = "Affinity class"
     )
 )
 
 dev.off()
+
+#------------------------------------------------------------
+# 3.5 PCA1 PC1 x PC3
+#------------------------------------------------------------
 
 if (number_pca_components >= 3) {
 
@@ -1462,13 +1455,13 @@ if (number_pca_components >= 3) {
         fviz_pca_biplot(
             pca_result,
             axes = c(1, 3),
-            col.ind = analysis_data[[class_column]],
+            col.ind = analysis_class,
             palette = "jco",
-            addEllipses = TRUE,
+            addEllipses = draw_class_ellipses,
             label = "var",
             col.var = "black",
             repel = TRUE,
-            legend.title = "Activity"
+            legend.title = "Affinity class"
         )
     )
 
@@ -1476,48 +1469,42 @@ if (number_pca_components >= 3) {
 }
 
 #============================================================
-# 4. Second PCA
+# 4. PCA2
 #
-# The original script selected columns by fixed numerical positions.
-# Here, variables can be provided manually or selected automatically
-# from the largest summed contributions to the first three PCs.
+# Descriptor selection is ALWAYS automatic.
+#
+# Variables are ranked by the sum of their contributions to
+# the first three principal components of PCA1.
 #============================================================
 
-if (length(manual_pca2_variables) > 0) {
+number_selection_axes <- min(
+    3,
+    ncol(pca_variables$contrib)
+)
 
-    pca2_descriptor_names <- manual_pca2_variables
-
-} else {
-
-    number_selection_axes <- min(
-        3,
-        ncol(pca_variables$contrib)
-    )
-
-    contribution_scores <- rowSums(
-        pca_variables$contrib[
-            ,
-            seq_len(number_selection_axes),
-            drop = FALSE
-        ]
-    )
-
-    ordered_contributions <- sort(
-        contribution_scores,
-        decreasing = TRUE
-    )
-
-    number_selected_variables <- min(
-        pca2_number_variables,
-        length(ordered_contributions)
-    )
-
-    pca2_descriptor_names <- names(
-        ordered_contributions
-    )[
-        seq_len(number_selected_variables)
+contribution_scores <- rowSums(
+    pca_variables$contrib[
+        ,
+        seq_len(number_selection_axes),
+        drop = FALSE
     ]
-}
+)
+
+ordered_contributions <- sort(
+    contribution_scores,
+    decreasing = TRUE
+)
+
+number_selected_variables <- min(
+    pca2_number_variables,
+    length(ordered_contributions)
+)
+
+pca2_descriptor_names <- names(
+    ordered_contributions
+)[
+    seq_len(number_selected_variables)
+]
 
 pca2_data <- descriptor_data[
     ,
@@ -1527,7 +1514,9 @@ pca2_data <- descriptor_data[
 
 write.table(
     data.frame(
-        descriptor = pca2_descriptor_names
+        descriptor = pca2_descriptor_names,
+        contribution_score =
+            contribution_scores[pca2_descriptor_names]
     ),
     file = paste0(
         output_prefix,
@@ -1550,6 +1539,10 @@ pca2_result <- PCA(
     graph = FALSE,
     ncp = number_pca2_components
 )
+
+#------------------------------------------------------------
+# 4.1 PCA2 eigenvalues
+#------------------------------------------------------------
 
 pca2_eigenvalues <- get_eigenvalue(
     pca2_result
@@ -1586,6 +1579,10 @@ print(
 
 dev.off()
 
+#------------------------------------------------------------
+# 4.2 PCA2 variable contributions
+#------------------------------------------------------------
+
 pca2_variables <- get_pca_var(
     pca2_result
 )
@@ -1619,9 +1616,15 @@ corrplot(
 
 dev.off()
 
+#------------------------------------------------------------
+# 4.3 PCA2 scores
+#------------------------------------------------------------
+
 pca2_scores <- data.frame(
     frame = analysis_data[[id_column]],
-    Type = analysis_data[[class_column]],
+    pdb_code = analysis_data[[pdb_column]],
+    DG = experimental_dg,
+    Type = analysis_class,
     pca2_result$ind$coord,
     check.names = FALSE
 )
@@ -1636,6 +1639,10 @@ write.table(
     quote = FALSE,
     row.names = FALSE
 )
+
+#------------------------------------------------------------
+# 4.4 PCA2 PC1 x PC2
+#------------------------------------------------------------
 
 png(
     paste0(
@@ -1652,17 +1659,21 @@ print(
     fviz_pca_biplot(
         pca2_result,
         axes = c(1, 2),
-        col.ind = analysis_data[[class_column]],
+        col.ind = analysis_class,
         palette = "jco",
-        addEllipses = TRUE,
+        addEllipses = draw_class_ellipses,
         label = "var",
         col.var = "black",
         repel = TRUE,
-        legend.title = "Activity"
+        legend.title = "Affinity class"
     )
 )
 
 dev.off()
+
+#------------------------------------------------------------
+# 4.5 PCA2 PC1 x PC3
+#------------------------------------------------------------
 
 if (number_pca2_components >= 3) {
 
@@ -1681,13 +1692,13 @@ if (number_pca2_components >= 3) {
         fviz_pca_biplot(
             pca2_result,
             axes = c(1, 3),
-            col.ind = analysis_data[[class_column]],
+            col.ind = analysis_class,
             palette = "jco",
-            addEllipses = TRUE,
+            addEllipses = draw_class_ellipses,
             label = "var",
             col.var = "black",
             repel = TRUE,
-            legend.title = "Activity"
+            legend.title = "Affinity class"
         )
     )
 
@@ -1697,8 +1708,7 @@ if (number_pca2_components >= 3) {
 #============================================================
 # 5. KRLS regression
 #
-# The selected PCA2 descriptors are used as KRLS predictors.
-# They are centered and scaled before fitting.
+# PCA2-selected descriptors are used as predictors.
 #============================================================
 
 krls_predictor_data <- pca2_data
@@ -1716,11 +1726,7 @@ krls_scaled_data <- predict(
     krls_predictor_data
 )
 
-experimental_dg <- analysis_data[
-    [
-        response_column
-    ]
-]
+# experimental_dg is already a numeric vector.
 
 krls_model <- krls(
     X = as.matrix(krls_scaled_data),
@@ -1736,20 +1742,33 @@ capture.output(
     )
 )
 
-png(
+#============================================================
+# 5.1 KRLS diagnostic plots
+#
+# plot.krls generates multiple plots.
+# Save all of them into one multipage PDF without interactive prompts.
+#============================================================
+
+pdf(
     paste0(
         output_prefix,
-        "_krls_diagnostic.png"
+        "_krls_diagnostic.pdf"
     ),
-    width = 1800,
-    height = 1400,
-    units = "px",
-    res = 300
+    width = 8,
+    height = 6,
+    onefile = TRUE
 )
 
-plot(krls_model)
+plot(
+    krls_model,
+    ask = FALSE
+)
 
 dev.off()
+
+#============================================================
+# 5.2 KRLS fitted values
+#============================================================
 
 fitted_dg <- as.numeric(
     krls_model$fitted
@@ -1757,10 +1776,12 @@ fitted_dg <- as.numeric(
 
 krls_predictions <- data.frame(
     frame = analysis_data[[id_column]],
-    Type = analysis_data[[class_column]],
+    pdb_code = analysis_data[[pdb_column]],
+    Type = analysis_class,
     Experimental_DG = experimental_dg,
     Fitted_DG = fitted_dg,
-    Residual = experimental_dg - fitted_dg
+    Residual = experimental_dg - fitted_dg,
+    check.names = FALSE
 )
 
 write.table(
@@ -1774,12 +1795,12 @@ write.table(
     row.names = FALSE
 )
 
-#------------------------------------------------------------
-# 5.1 KRLS fit metrics
+#============================================================
+# 5.3 KRLS fit metrics
 #
-# These metrics describe the fit to the same data used to train the
-# model. They are not yet external-validation metrics.
-#------------------------------------------------------------
+# These are IN-SAMPLE fit metrics.
+# They are not external-validation metrics.
+#============================================================
 
 residual_sum_squares <- sum(
     (
@@ -1854,9 +1875,9 @@ write.table(
     row.names = FALSE
 )
 
-#------------------------------------------------------------
-# 5.2 Experimental versus fitted plot
-#------------------------------------------------------------
+#============================================================
+# 5.4 Experimental versus fitted DG
+#============================================================
 
 krls_plot <- ggplot(
     krls_predictions,
@@ -1904,9 +1925,9 @@ krls_plot <- ggplot(
     theme_minimal() +
     labs(
         title = "Experimental versus fitted values — KRLS",
-        x = "Experimental binding free energy",
-        y = "Fitted binding free energy",
-        color = "Activity"
+        x = "Experimental binding free energy (kcal/mol)",
+        y = "Fitted binding free energy (kcal/mol)",
+        color = "Affinity class"
     )
 
 ggsave(
@@ -1937,6 +1958,7 @@ ggsave(
 cat("\n")
 cat("PRIMoRDiA PCA and KRLS analysis completed.\n")
 cat("Input matrix:", input_file, "\n")
+cat("Experimental data:", experimental_file, "\n")
 cat("Number of complexes:", nrow(analysis_data), "\n")
 cat("Number of descriptors in PCA1:", ncol(descriptor_data), "\n")
 cat("Number of descriptors in PCA2/KRLS:", ncol(pca2_data), "\n")
@@ -1944,6 +1966,7 @@ cat("KRLS lambda:", krls_lambda, "\n")
 cat("KRLS fitted R2:", r_squared_fit, "\n")
 cat("KRLS fitted RMSE:", rmse_fit, "\n")
 cat("KRLS fitted MAE:", mae_fit, "\n")
+cat("KRLS fitted Spearman:", spearman_fit, "\n")
 cat("\n")
 
 )PRIMORDIA_R";

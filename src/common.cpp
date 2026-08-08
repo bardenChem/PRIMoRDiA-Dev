@@ -41,10 +41,45 @@ bool M_R					= false;
 bool comp_H					= false;
 double smallest_pro_lig_dist= 0.0; // global variable to hold the minimum distance between protein and ligand atoms.
 /*********************************************************************************/
+unsigned int requested_threads = 1; // global variable to hold the number of threads requested by the user.
+unsigned int entry_workers = 1;
 unsigned int NP		= omp_get_max_threads();
-
 Itimer chronometer;
 std::unique_ptr<Ilog> m_log ( new Ilog() );
+
+/*********************************************/
+std::uint64_t read_mem_available_bytes() {
+    std::ifstream input("/proc/meminfo");
+
+    if (!input) {
+        throw std::runtime_error("Could not read /proc/meminfo");
+    }
+
+    std::string key;
+    std::uint64_t value_kib = 0;
+    std::string unit;
+
+    while (input >> key >> value_kib >> unit) {
+        if (key == "MemAvailable:") {
+            return value_kib * 1024ULL;
+        }
+    }
+
+    throw std::runtime_error(
+        "MemAvailable was not found in /proc/meminfo"
+    );
+}
+const std::uint64_t available = read_mem_available_bytes();
+const std::uint64_t minimum_reserve =  2ULL * 1024ULL * 1024ULL * 1024ULL; // valor ilustrativo
+
+const std::uint64_t proportional_reserve = available / 10; // 10%, também ilustrativo
+const std::uint64_t reserve =  std::max(minimum_reserve, proportional_reserve);
+
+const std::uint64_t memory_budget =
+    available > reserve
+        ? available - reserve
+        : available / 2;
+
 /*********************************************************************************/
 bool M_verbose	= false;
 bool M_logfile	= false;

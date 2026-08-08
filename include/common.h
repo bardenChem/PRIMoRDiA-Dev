@@ -44,9 +44,14 @@ extern double smallest_pro_lig_dist; // global variable to hold the minimum dist
 
 extern unsigned int requested_threads; // global variable to hold the number of threads requested by the user.
 extern unsigned int entry_workers;
-extern double memory_budget; // global variable to hold the memory budget requested by the user.
-extern double memory_available;
 extern unsigned int NP; // global  holding the maximum number of openMP threads to be used.
+
+std::uint64_t read_mem_available_bytes();
+extern const std::uint64_t minimum_reserve;
+extern const std::uint64_t proportional_reserve;
+extern const std::uint64_t reserve;
+extern const std::uint64_t memory_budget;
+
 extern Itimer chronometer; // global object that returns total wall time of  execution. 
 extern std::unique_ptr<Ilog> m_log; // object that writes to a log file and/or outputs messages to the console.
 

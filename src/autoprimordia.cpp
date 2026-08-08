@@ -55,7 +55,14 @@ using std::vector;
 using std::to_string;
 namespace fs = std::experimental::filesystem;
 /*************************************************************/
-AutoPrimordia::AutoPrimordia(){}
+AutoPrimordia::AutoPrimordia():
+	m_file_list("noname")     ,
+	gridsize(0)               ,
+	band_method("BD")         ,
+	bandgap(0.0)              ,
+	run_type("notype")		  {
+
+	}
 /*************************************************************/
 AutoPrimordia::AutoPrimordia(const char* file_list):
 	m_file_list(file_list)						 {
@@ -81,6 +88,10 @@ AutoPrimordia::AutoPrimordia(const char* file_list):
 				else if	( list_f.lines[i].words[j] == "pymols" )	 pymol_script= true;
 				else if ( list_f.lines[i].words[j] == "npgrid" )     NP     	 = list_f.lines[i].get_int(j+1);
 				else if ( list_f.lines[i].words[j] == "smallest_pro_lig_dist") smallest_pro_lig_dist = list_f.lines[i].get_double(j+1);
+				else if ( list_f.lines[i].words[j] == "threads" )     requested_threads = list_f.lines[i].get_int(j+1);
+				else if ( list_f.lines[i].words[j] == "gridsize" )    gridsize = list_f.lines[i].get_int(j+1);
+				else if ( list_f.lines[i].words[j] == "band_method" ) band_method = list_f.lines[i].words[j+1];
+				else if ( list_f.lines[i].words[j] == "bandgap" )     bandgap = list_f.lines[i].get_double(j+1);
 			}
 		}
 	}
@@ -117,17 +128,15 @@ void AutoPrimordia::calculate_rd(){
 	const char* anion 	= ".";
 	string program		= ".";
 	string locHard 		= ".";
-	string btm			= "BD";
-	int gridsize		= 0;
-	double bgap			= 0;
-	bool mep			= false;
+	bool mep			= false; // lembrar de remover essa opção 
 	int charge			= 0;
 	double dens_tmp		= 0.0;
 	
 	//------------------------------------------------------
 	//opening the file again
 	Ibuffer list_f (m_file_list,true);
-		
+	std::vector<Iline> input_lines;
+
 	for ( i=1;i<list_f.nLines;i++ ){
 		if ( list_f.lines[i].words.size() <= 0 ){
 			m_log->input_message("There are no contents in the line! Verify your input file!\n");
@@ -135,50 +144,57 @@ void AutoPrimordia::calculate_rd(){
 		else if ( list_f.lines[i].words[0][0] == '#' ){ continue; }
 		else{
 			mode = list_f.lines[i].get_int(0);
-			for ( unsigned j=0; j<list_f.lines[i].words.size(); j++ ){
-				if		( list_f.lines[i].words[j]  == "mep") mep = true;
-				else if ( list_f.lines[i].words[j]  == "vm" ) dens_tmp = list_f.lines[i].get_double(j+1);
-				else if ( list_f.lines[i].words[j]	== "EW" ) btm = "EW";
-				else if ( list_f.lines[i].words[j]	== "BD" ) btm = "BD";
+			if (mode == 1 || mode == 2 || mode == 3){
+				entry_workers++;
+				input_lines.push_back(list_f.lines[i]);
 			}
-			m_log->inp_delim(2);
-			m_log->input_message("Starting New Entry!\n");
-			primordia rd;			
-			switch ( mode ){
-				case 1:
-					neut	= list_f.lines[i].words[1].c_str();
-					locHard	= list_f.lines[i].words[2];
-					gridsize= list_f.lines[i].get_int(3);
-					program	= list_f.lines[i].words[4];
-					rd.init_FOA(neut,gridsize,locHard,mep,program,dens_tmp);
-				break;
-				case 2:
-					neut	= list_f.lines[i].words[1].c_str();
-					cation	= list_f.lines[i].words[2].c_str();
-					anion	= list_f.lines[i].words[3].c_str();
-					locHard	= list_f.lines[i].words[4];
-					gridsize= list_f.lines[i].get_int(5);
-					charge	= list_f.lines[i].get_int(6);
-					program	= list_f.lines[i].words[7];
-					rd.init_FD(neut,cation,anion,gridsize,charge,mep,locHard,program,dens_tmp);
-				break;
-				case 3:
-					neut	= list_f.lines[i].words[1].c_str();
-					locHard	= list_f.lines[i].words[2];
-					gridsize= list_f.lines[i].get_int(3);
-					bgap	= list_f.lines[i].get_int(4);
-					cation	= list_f.lines[i].words[5].c_str();
-					program = list_f.lines[i].words[6];
-					double r_atom[3];
-					r_atom[0] = list_f.lines[i].get_double(7);
-					r_atom[1] = list_f.lines[i].get_double(8);
-					r_atom[2] = list_f.lines[i].get_double(9);
-					int sze   = list_f.lines[i].get_int(10);
-					rd.init_protein_RD(neut,locHard,gridsize,bgap,r_atom,sze,cation,mep,btm,program);
-				break;
-			}
-			RDs.emplace_back(rd); 
 		}
+	}
+
+	RDs.resize(entry_workers);
+	if ( gridsize > 0 ) NP = 1;
+	else if ( requested_threads > 1 ) NP = requested_threads;
+	else NP = omp_get_max_threads();
+
+	omp_set_num_threads(NP);
+	#pragma omp parallel for private(i,mode,neut,cation,anion,program,locHard,mep,charge,dens_tmp)
+	for ( i=0; i<input_lines.size(); i++ ){
+		mode = input_lines[i].get_int(0);
+		std::cout << mode << std::endl;				
+		m_log->inp_delim(2);
+		m_log->input_message("Starting New Entry!\n");
+		primordia rd;			
+		switch ( mode ){
+			case 1:
+				neut	= input_lines[i].words[1].c_str();
+				locHard	= input_lines[i].words[2];
+				program	= input_lines[i].words[4];
+				rd.init_FOA(neut,gridsize,locHard,mep,program,dens_tmp);
+			break;
+			case 2:
+				neut	= input_lines[i].words[1].c_str();
+				cation	= input_lines[i].words[2].c_str();
+				anion	= input_lines[i].words[3].c_str();
+				locHard	= input_lines[i].words[4];
+				charge	= input_lines[i].get_int(6);
+				program	= input_lines[i].words[7];
+				rd.init_FD(neut,cation,anion,gridsize,charge,mep,locHard,program,dens_tmp);
+			break;
+			case 3:
+				neut	= input_lines[i].words[1].c_str();
+				locHard	= input_lines[i].words[2];
+				cation	= input_lines[i].words[5].c_str();
+				program = input_lines[i].words[6];
+				double r_atom[3];
+				r_atom[0] = input_lines[i].get_double(7);
+				r_atom[1] = input_lines[i].get_double(8);
+				r_atom[2] = input_lines[i].get_double(9);
+				int sze   = input_lines[i].get_int(10);
+				rd.init_protein_RD(neut,locHard,gridsize,bandgap,r_atom,sze,cation,mep,band_method,program);
+			break;
+		}
+		RDs[i] = rd;
+		
 	}		
 }
 /*************************************************************/

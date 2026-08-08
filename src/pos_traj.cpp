@@ -289,14 +289,15 @@ void traj_rd::calculate_complex_stats(){
 			protein = i;
 		}
 	}
-	vector< vector <vector<double> > > sum_diff(complexes.size());
+	vector< vector<double> > sum_diff(complexes.size());
+
+
 	for( unsigned i=0; i<complexes.size(); i++ ){
-		sum_diff[i].resize( res_list.size() );
 		// doing only for res_list
+		sum_diff[i].resize(19);
 		for( unsigned j=0; j<res_list.size(); j++ ){
-			sum_diff[i][j].resize(19);
 			for( int k=0; k<19; k++ ){
-				sum_diff[i][j][k] = frames[complexes[i]].residues_rd[res_list[j]].rd_sum[k] - 
+				sum_diff[i][k] += frames[complexes[i]].residues_rd[res_list[j]].rd_sum[k] - 
 									frames[protein].residues_rd[res_list[j]].rd_sum[k];
 			}
 		}
@@ -307,23 +308,17 @@ void traj_rd::calculate_complex_stats(){
 	res_file_f << "frame Nucleophilicity Electrophilicity Radicality "
 				 << "Netphilicity Hardness_Vee Hardness_LCP Fukui_pot_left Fukui_pot_right Fukui_pot_zero "
 				 << "softness_dual hyper_softness Multiphilic Fukushima charge Electron_Density MEP "
-				 << "hardness_TFD softness_avg hardness_int res res_typ\n";
+				 << "hardness_TFD softness_avg hardness_int\n";
 	
 	
 	for( unsigned i=0; i<sum_diff.size(); i++ ){
-		for( unsigned j=0;j< sum_diff[i].size() ;j++ ){
-
-			for( int k=0; k<sum_diff[i][j].size(); k++){
-				if ( k == 0 ) { 
-					res_file_f << frames[ complexes[i] ].file_name << " ";
-				}
-				res_file_f << sum_diff[i][j][k] << " ";
+		for( int k=0; k<sum_diff[i].size(); k++){
+			if ( k == 0 ) { 
+				res_file_f << frames[ complexes[i] ].file_name << " ";
 			}
-			unsigned int sssize = frames[ complexes[i] ].labels[ res_list[j] ].size();
-		
-			res_file_f << frames[ complexes[i] ].labels[ res_list[j] ] << " "
-					   << frames[ complexes[i] ].labels[ res_list[j] ].substr(sssize-3,sssize) << "\n";
+			res_file_f << sum_diff[i][k] << " ";
 		}
+		res_file_f << "\n";			
 	}
 	res_file_f.close();
 
