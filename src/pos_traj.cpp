@@ -178,9 +178,11 @@ void traj_rd::init_from_folder(){
 	
 	fs::path c_path = fs::current_path();
 	std::vector<string> fnames; 
+	const std::size_t initial_frame_count = frames.size();
 	if ( user_path !="no_path" ){
 		c_path =  user_path;
 	}
+	m_log->input_message("[traj_rd::init_from_folder] Searching for .rslrd files in: " + c_path.string());
 	
 	for ( const auto & entry : fs::directory_iterator(c_path) ){
 		string tmp_name = entry.path();
@@ -188,7 +190,7 @@ void traj_rd::init_from_folder(){
 			fnames.push_back( tmp_name );
 		}
 	}
-	//cout << c_path << endl;
+	m_log->input_message("[traj_rd::init_from_folder] Files found: " + to_string(fnames.size()));
 	
 	std::sort( fnames.begin(), fnames.end() );
 	string Line;
@@ -221,9 +223,42 @@ void traj_rd::init_from_folder(){
 				line++;
 			}
 			fr_fle.close();
-		if ( Frame.residues_rd.size() > 2 ){frames.push_back(Frame);}
-		}else { std::cout<< "file not open!"<<std::endl; }
+
+			std::size_t descriptor_count = 0;
+			std::size_t non_zero_descriptor_count = 0;
+			for ( const auto& frame_residue : Frame.residues_rd ){
+				descriptor_count += frame_residue.rd_sum.size();
+				for ( const double descriptor : frame_residue.rd_sum ){
+					if ( std::fabs(descriptor) > 1.0e-12 ){
+						non_zero_descriptor_count++;
+					}
+				}
+			}
+
+			const bool frame_created = Frame.residues_rd.size() > 2;
+			m_log->input_message(
+				"[traj_rd::init_from_folder] File: " + fnames[i] +
+				" | residues: " + to_string(Frame.residues_rd.size()) +
+				" | descriptors: " + to_string(descriptor_count) +
+				" | non-zero descriptors: " + to_string(non_zero_descriptor_count) +
+				" | frame created: " + (frame_created ? "yes" : "no")
+			);
+			if ( frame_created ){
+				frames.push_back(Frame);
+			}else{
+				m_log->write_warning("Frame not created for " + fnames[i] +
+					": fewer than three residues were loaded.");
+			}
+		}else {
+			m_log->write_error("[traj_rd::init_from_folder] Could not open file: " + fnames[i]);
+		}
 	}
+
+	m_log->input_message(
+		"[traj_rd::init_from_folder] Frames created in this call: " +
+		to_string(frames.size() - initial_frame_count) +
+		" | total frames available: " + to_string(frames.size())
+	);
 }
 /***************************************************************************/
 void traj_rd::calculate_res_stats(){
@@ -280,14 +315,41 @@ void traj_rd::calculate_res_stats(){
 void traj_rd::calculate_complex_stats(){
 
 	vector<int> complexes;
-	unsigned int protein; 
+	unsigned int protein = 0;
+	bool protein_loaded = false;
 
 	for( unsigned i=0; i< frames.size(); i++ ){
 		if ( frames[i].file_name.compare(0, 7, "complex") == 0 ){
 			complexes.push_back(i);
 		}else if ( frames[i].file_name.compare(0, 7, "protein") == 0 ){
 			protein = i;
+			protein_loaded = true;
 		}
+	}
+
+	m_log->input_message(
+		"[traj_rd::calculate_complex_stats] Total frames: " + to_string(frames.size()) +
+		" | complexes loaded: " + to_string(complexes.size()) +
+		" | protein frame loaded: " + (protein_loaded ? "yes" : "no")
+	);
+
+	if ( !protein_loaded ){
+		m_log->write_error(
+			"[traj_rd::calculate_complex_stats] No frame with prefix 'protein' was loaded; "
+			"complex statistics were not calculated."
+		);
+		return;
+	}
+
+	m_log->input_message(
+		"[traj_rd::calculate_complex_stats] Protein frame: " + frames[protein].file_name +
+		" | residues: " + to_string(frames[protein].residues_rd.size())
+	);
+
+	if ( complexes.empty() ){
+		m_log->write_warning(
+			"[traj_rd::calculate_complex_stats] No frame with prefix 'complex' was loaded."
+		);
 	}
 	vector< vector<double> > sum_diff(complexes.size());
 
