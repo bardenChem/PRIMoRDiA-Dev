@@ -160,7 +160,6 @@ void AutoPrimordia::calculate_rd(){
 	#pragma omp parallel for private(i,mode,neut,cation,anion,program,locHard,mep,charge,dens_tmp)
 	for ( i=0; i<input_lines.size(); i++ ){
 		mode = input_lines[i].get_int(0);
-		std::cout << mode << std::endl;				
 		m_log->inp_delim(2);
 		m_log->input_message("Starting New Entry!\n");
 		primordia rd;			
@@ -183,13 +182,13 @@ void AutoPrimordia::calculate_rd(){
 			case 3:
 				neut	= input_lines[i].words[1].c_str();
 				locHard	= input_lines[i].words[2];
-				cation	= input_lines[i].words[5].c_str();
-				program = input_lines[i].words[6];
+				cation	= input_lines[i].words[3].c_str();
+				program = input_lines[i].words[4];
 				double r_atom[3];
-				r_atom[0] = input_lines[i].get_double(7);
-				r_atom[1] = input_lines[i].get_double(8);
-				r_atom[2] = input_lines[i].get_double(9);
-				int sze   = input_lines[i].get_int(10);
+				r_atom[0] = input_lines[i].get_double(5);
+				r_atom[1] = input_lines[i].get_double(6);
+				r_atom[2] = input_lines[i].get_double(7);
+				int sze   = input_lines[i].get_int(8);
 				rd.init_protein_RD(neut,locHard,gridsize,bandgap,r_atom,sze,cation,mep,band_method,program);
 			break;
 		}

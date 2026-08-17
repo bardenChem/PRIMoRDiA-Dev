@@ -21,8 +21,12 @@
 /*********************************************************/
 int main(int argc, char **argv){
 	
+
 	if ( argc <= 1 ){
-		cout << "There are no provided arguments!" << endl;
+		interface empty;
+		empty.print_program_info();
+		cout << "There are no provided arguments!\n\n" << endl;
+		empty.write_help();
 		exit(-1);
 	}
 	interface PRIMoRDiA(argc,argv);

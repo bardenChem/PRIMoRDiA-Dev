@@ -51,6 +51,7 @@ class interface{
 		interface& operator=(const interface& rhs) = delete;
 		~interface();
 		//member functions
+		void print_program_info();
 		void run();
 		void MO_cube();
 		void ED_cube();

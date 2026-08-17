@@ -43,6 +43,8 @@
 #include "../include/scripts.h"
 #include "../include/Iprotein.h"
 
+#include "build_info.h"
+
 /*********************************************************/
 using std::unique_ptr;
 using std::cout;
@@ -98,7 +100,31 @@ interface::interface(int argc, char** argv) :
 	m_log->inp_delim(2);
 }
 /***********************************************************************/
+void interface::print_program_info() {
+
+    std::cout
+        << "Starting PRIMoRDiA software!\n";
+
+    std::cout
+        << "Version: "
+        << PRIMORDIA_VERSION
+        << '\n';
+
+    std::cout
+        << "Build type: "
+        << PRIMORDIA_BUILD_TYPE
+        << '\n';
+
+    std::cout
+        << "Compiled on: "
+        << __DATE__
+        << " "
+        << __TIME__
+        << "\n\n";
+}
+/***********************************************************************/
 void interface::run(){
+	this->print_program_info();
 	if ( runtyp == "-f" ){
 		AutoPrimordia rds ( m_argv[2].c_str() );
 		rds.init();
@@ -313,7 +339,8 @@ void interface::write_input(){
 		
 	std::ofstream inp_file("primordia.input");
 	inp_file << "#RT " << RT << " \n"
-			 << "#PR eband 1\n";	
+			 << "#PR eband 1 band_method EW gridsize " << grid << " \n"
+			 << "#PR threads " << NP << " \n";
 	
 	for(int i=0;i<fnames.size();i++){
 		if ( program == "mopac"){
@@ -321,9 +348,9 @@ void interface::write_input(){
 				if ( option == 1 )
 					inp_file << option << " " << fnames[i] << " " <<	lh << " " << grid << " " << program << " " << mep << endl;
 				if ( option == 3 ){
-					inp_file << option << " " << fnames[i] << " " <<	lh << " " << grid << " " << band << " " << " "
+					inp_file << option << " " << fnames[i] << " " <<	lh << " "
 								<< change_extension(fnames[i].c_str(),".pdb") << " " << program << " " << " "
-								<< 0 << " " <<  0  << " " <<  0  << " " << 0 << " " << band_method << " " << mep << endl;
+								<< 0 << " " <<  0  << " " <<  0  << " " << 0 << " " << mep << endl;
 				}
 			}else if( check_file_ext(".mgf",fnames[i].c_str()) ){
 				if ( option == 2 ) {
@@ -341,10 +368,11 @@ void interface::write_input(){
 			} */	
 			else if( check_file_ext(".gz", fnames[i].c_str()) ){
 				if ( option == 3 ){
-					
-					inp_file << option << " " << fnames[i] << " " <<	lh << " " << grid << " " << band << " " << " "
-							 << change_extension(fnames[i].c_str(),".pdb") << " " << program << " " << " "
-							 << 0 << " " <<  0  << " " <<  0  << " " << 0 << " " << band_method << " " << mep << endl;
+					std::string pdb_name = remove_extension(fnames[i].c_str());
+
+					inp_file << option << " " << fnames[i] << " " << lh << " "
+							 << change_extension(pdb_name.c_str(),".pdb") << " " << program << " " << " "
+							 << 0 << " " <<  0  << " " <<  0  << " " << 0 <<  " " << mep << endl;
 				}
 			}	
 		}
@@ -377,7 +405,7 @@ void interface::write_input(){
 								<< lh	<<	" " << grid		<< " " << 1 << " " << program << " " << mep << endl;
 				}
 				if ( option == 3 ){
-					inp_file << option << " " << fnames[i] << " " <<	lh << " " << grid << " " << band << " " << " "
+					inp_file << option << " " << fnames[i] << " " << lh 
 								<< change_extension(fnames[i].c_str(),".pdb") << " " << program << " " << " "
 								<< 0 << " " <<  0  << " " <<  0  << " " << 0 << " " << band_method << " " << mep << endl;
 				}
